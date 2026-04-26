@@ -1,0 +1,16 @@
+# dependencias
+node_modules/
+
+# variables sensibles
+.env
+.env.*
+
+# logs
+*.log
+
+# PDFs generados
+pdfs/*.pdf
+
+# sistema
+.DS_Store
+Thumbs.db

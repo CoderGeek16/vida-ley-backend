@@ -1,0 +1,18 @@
+{
+  "name": "vida-ley",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "mysql2": "^3.6.5",
+    "pdfkit": "^0.15.2",
+    "puppeteer": "^24.42.0",
+    "uuid": "^9.0.1"
+  }
+}

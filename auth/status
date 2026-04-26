@@ -1,0 +1,7 @@
+app.get("/auth/status", (req, res) => {
+  res.json({
+    authEnabled: false,  // 👈 usuarios no necesitan login
+    authenticated: true,
+    role: "user"
+  });
+});

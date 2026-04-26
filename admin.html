@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Admin Vida Ley</title>
+
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI', sans-serif;
+  background:#f5f7fa;
+}
+
+/* LOGIN */
+.login{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.login-box{
+  background:white;
+  padding:40px;
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.1);
+  text-align:center;
+}
+
+.login input{
+  padding:10px;
+  width:200px;
+  margin-bottom:10px;
+}
+
+.login button{
+  padding:10px 20px;
+  background:#006d77;
+  color:white;
+  border:none;
+  border-radius:6px;
+}
+
+/* PANEL */
+.panel{
+  display:none;
+}
+
+.sidebar{
+  width:240px;
+  height:100vh;
+  background:#0d4f5a;
+  color:white;
+  position:fixed;
+  padding:20px;
+}
+
+.main{
+  margin-left:260px;
+  padding:30px;
+}
+
+.card{
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  margin:10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="login">
+  <div class="login-box">
+    <h2>🔒 Acceso Admin</h2>
+    <input id="pass" type="password" placeholder="Clave">
+    <br>
+    <button onclick="login()">Ingresar</button>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div id="panel" class="panel">
+
+  <div class="sidebar">
+    <h2>Vida Ley</h2>
+    <button onclick="dashboard()">Dashboard</button>
+    <button onclick="listar()">Colaboradores</button>
+  </div>
+
+  <div class="main">
+
+    <h1>Panel Administrativo</h1>
+
+    <input placeholder="Buscar DNI..." onkeyup="buscar(event)">
+
+    <div id="cards"></div>
+    <div id="tabla"></div>
+    <div id="detalle"></div>
+
+  </div>
+
+</div>
+
+<script>
+const API = "http://localhost:3000";
+
+// =====================
+// LOGIN
+// =====================
+async function login(){
+
+  const password = document.getElementById("pass").value;
+
+  const r = await fetch(API + "/auth/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ password })
+  });
+
+  const res = await r.json();
+
+  if(res.ok){
+    document.getElementById("login").style.display = "none";
+    document.getElementById("panel").style.display = "block";
+    dashboard();
+  }else{
+    alert("Clave incorrecta");
+  }
+}
+
+// =====================
+// DASHBOARD REAL
+// =====================
+async function dashboard(){
+
+  const col = await fetch(API + "/admin/colaboradores").then(r=>r.json());
+  const ben = await fetch(API + "/admin/total-beneficiarios").then(r=>r.json());
+
+  document.getElementById("cards").innerHTML = `
+    <div class="card">Colaboradores: ${col.data.length}</div>
+    <div class="card">Beneficiarios: ${ben.total}</div>
+  `;
+}
+
+// =====================
+// LISTAR
+// =====================
+async function listar(){
+
+  const res = await fetch(API + "/admin/colaboradores").then(r=>r.json());
+
+  let html = "<table>";
+
+  res.data.forEach(c => {
+    html += `
+      <tr>
+        <td>${c.dni}</td>
+        <td>${c.nombres}</td>
+        <td><button onclick="ver(${c.id})">Ver</button></td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+
+  document.getElementById("tabla").innerHTML = html;
+}
+
+// =====================
+// HISTORIAL
+// =====================
+async function ver(id){
+
+  const res = await fetch(API + "/admin/historial/" + id).then(r=>r.json());
+
+  let html = "<h3>Historial</h3>";
+
+  res.beneficiarios.forEach(b => {
+    html += `<div>${b.nombres}</div>`;
+  });
+
+  document.getElementById("detalle").innerHTML = html;
+}
+
+// =====================
+// BUSCAR
+// =====================
+async function buscar(e){
+
+  if(e.key !== "Enter") return;
+
+  const dni = e.target.value;
+
+  const res = await fetch(API + "/colaborador/" + dni).then(r=>r.json());
+
+  if(!res.ok){
+    alert("No encontrado");
+    return;
+  }
+
+  ver(res.data.id);
+}
+</script>
+
+</body>
+</html>

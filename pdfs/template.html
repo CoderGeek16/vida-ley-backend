@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<style>
+body {
+  font-family: Arial;
+  font-size: 11px;
+  margin: 30px;
+}
+
+h3 {
+  text-align: center;
+  margin: 2px;
+}
+
+p {
+  text-align: justify;
+}
+
+.box {
+  border: 1px solid black;
+  padding: 6px;
+  margin-top: 5px;
+}
+
+.section {
+  border: 1px solid black;
+  padding: 5px;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 5px;
+}
+
+th, td {
+  border: 1px solid black;
+  padding: 4px;
+  font-size: 10px;
+}
+
+.firma {
+  border: 1px solid black;
+  margin-top: 40px;
+  height: 120px;
+  text-align: center;
+  padding-top: 40px;
+}
+
+.logo {
+  text-align: left;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- LOGO -->
+<div class="logo">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Logo-placeholder.svg/200px-Logo-placeholder.svg.png" width="120">
+</div>
+
+<h3>ANEXO</h3>
+<h3>FORMATO REFERENCIAL DE DECLARACION JURADA DE BENEFICIARIOS</h3>
+<h3>DEL SEGURO DE VIDA</h3>
+
+<p>
+El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688,
+Ley de Consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre
+los beneficiarios del seguro de vida en caso de fallecimiento natural o accidental.
+</p>
+
+<div class="box">
+Nombres y apellidos del trabajador(a): {{nombre}} &nbsp;&nbsp;&nbsp;&nbsp;
+DNI: {{dni}}
+</div>
+
+<div class="box">
+Nombre del empleador: TRAMARSA S.A.
+</div>
+
+<!-- PRIMEROS -->
+<div class="section">
+Primeros Beneficiarios: Cónyuge o conviviente y descendientes
+</div>
+
+<table>
+<tr>
+<th>Nombre y apellidos</th>
+<th>DNI</th>
+<th>Parentesco</th>
+<th>Fecha nacimiento</th>
+<th>Domicilio</th>
+</tr>
+
+{{filas_primero}}
+
+</table>
+
+<p style="font-size:9px;">
+(*) A falta de cónyuge, puede nombrarse conviviente.<br>
+(**) En caso de descendientes, aplica normativa del Código Civil.
+</p>
+
+<!-- SEGUNDOS -->
+<div class="section">
+Solo a falta de los Primeros Beneficiarios: Ascendientes y hermanos menores de edad
+</div>
+
+<table>
+<tr>
+<th>Nombre y apellidos</th>
+<th>DNI</th>
+<th>Parentesco</th>
+<th>Fecha nacimiento</th>
+<th>Domicilio</th>
+</tr>
+
+{{filas_segundo}}
+
+</table>
+
+<p style="font-size:9px;">
+(***) En caso de ascendientes, solo a falta de padres se consideran abuelos.
+</p>
+
+<!-- FIRMA -->
+<div class="firma">
+______________________________<br>
+Firma del trabajador<br><br>
+..........., ...... de .................. del 20......
+</div>
+
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inicio Vida Ley</title>
+
+<style>
+  body{
+    font-family: Arial;
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#f4f4f4;
+  }
+
+  /* HEADER */
+  .header{
+    position:absolute;
+    top:20px;
+    right:30px;
+  }
+
+  .btn-admin{
+    background:transparent;
+    border:2px solid #006d77;
+    color:#006d77;
+    padding:10px 18px;
+    border-radius:20px;
+    font-size:14px;
+    cursor:pointer;
+    transition:0.3s;
+  }
+
+  .btn-admin:hover{
+    background:#006d77;
+    color:white;
+  }
+
+  /* CARD */
+  .box{
+    background:white;
+    padding:50px 60px;
+    border-radius:15px;
+    text-align:center;
+    box-shadow:0 15px 40px rgba(0,0,0,0.1);
+    width:350px;
+  }
+
+  h1{
+    margin-bottom:10px;
+  }
+
+  p{
+    color:#555;
+    margin-bottom:30px;
+  }
+
+  .btn-main{
+    padding:15px 25px;
+    font-size:18px;
+    background:#006d77;
+    color:white;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    transition:0.3s;
+  }
+
+  .btn-main:hover{
+    background:#004f57;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- 🔒 ADMIN ARRIBA -->
+<div class="header">
+  <button class="btn-admin" onclick="irAdmin()">
+    🔒 Admin
+  </button>
+</div>
+
+<!-- 🎯 CARD PRINCIPAL -->
+<div class="box">
+  <h1>Sistema Vida Ley</h1>
+  <p>Accede al registro de beneficiarios</p>
+
+  <button class="btn-main" onclick="ir()">Ingresar</button>
+</div>
+
+<script>
+function ir(){
+  window.location.href = "vidaley.html";
+}
+
+function irAdmin(){
+  window.location.href = "admin.html";
+}
+</script>
+
+</body>
+</html>

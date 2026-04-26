@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vida Ley</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#edf4f3;
+    --bg-soft:#f7fbfa;
+    --surface:#ffffff;
+    --ink:#143935;
+    --muted:#627874;
+    --line:rgba(23,49,42,.12);
+    --primary:#006d77;
+    --primary-dark:#0d4f5a;
+    --accent:#ef8b2c;
+    --accent-soft:#fff4e8;
+    --marine:#0b5966;
+    --sand:#f3ebe0;
+    --success:#228b5b;
+    --shadow:0 24px 60px rgba(22,52,44,.10);
+    --radius-xl:30px;
+    --radius-lg:22px;
+    --radius-md:16px;
+  }
+
+  *{
+    box-sizing:border-box;
+  }
+
+  html{
+    scroll-behavior:smooth;
+  }
+
+  body{
+    margin:0;
+    color:var(--ink);
+    font-family:"Manrope","Segoe UI",sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(239,139,44,.18), transparent 30%),
+      radial-gradient(circle at top right, rgba(0,109,119,.18), transparent 24%),
+      linear-gradient(180deg, #f7f6f0 0%, #edf4f3 100%);
+    min-height:100vh;
+  }
+
+  .page-shell{
+    padding:20px 16px 40px;
+  }
+
+  .layout{
+    max-width:1180px;
+    margin:0 auto;
+  }
+
+  .hero{
+    position:relative;
+    overflow:hidden;
+    padding:20px 22px;
+    border:1px solid rgba(255,255,255,.65);
+    border-radius:var(--radius-xl);
+    background:
+      linear-gradient(115deg, rgba(255,255,255,.96), rgba(247,250,249,.88)),
+      linear-gradient(180deg, rgba(0,109,119,.05), rgba(239,139,44,.03));
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(16px);
+  }
+
+  .hero::before{
+    content:"";
+    position:absolute;
+    inset:0 0 auto 0;
+    height:8px;
+    background:linear-gradient(90deg, var(--primary-dark), var(--primary), var(--accent));
+  }
+
+  .hero::after{
+    content:"";
+    position:absolute;
+    inset:auto -80px -120px auto;
+    width:280px;
+    height:280px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(0,109,119,.16), transparent 68%);
+    pointer-events:none;
+  }
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px;
+    border-radius:999px;
+    background:rgba(255,255,255,.75);
+    color:var(--primary-dark);
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+
+  .hero-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);
+    gap:18px;
+    align-items:stretch;
+    margin-top:12px;
+  }
+
+  .hero h1{
+    margin:10px 0 10px;
+    font-size:clamp(1.8rem, 4vw, 2.8rem);
+    line-height:1.04;
+    font-weight:800;
+    letter-spacing:-.04em;
+  }
+
+  .hero p{
+    margin:0;
+    max-width:60ch;
+    color:var(--muted);
+    font-size:.98rem;
+    line-height:1.6;
+  }
+
+  .hero-panel{
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:14px;
+    padding:18px 20px;
+    border-radius:24px;
+    background:
+      radial-gradient(circle at bottom right, rgba(239,139,44,.22), transparent 34%),
+      linear-gradient(180deg, rgba(0,109,119,.09), rgba(255,255,255,.92));
+    border:1px solid rgba(0,109,119,.14);
+  }
+
+  .hero-panel .mini-label{
+    color:var(--primary-dark);
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+  }
+
+  .hero-panel strong{
+    font-size:1.05rem;
+  }
+
+  .hero-panel p{
+    font-size:.95rem;
+  }
+
+  .hero-ribbon{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:18px;
+  }
+
+  .ribbon-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:13px 16px;
+    border-radius:999px;
+    background:rgba(255,255,255,.9);
+    border:1px solid rgba(0,109,119,.12);
+    box-shadow:0 10px 28px rgba(9,63,71,.06);
+    color:var(--primary-dark);
+    font-size:.94rem;
+    font-weight:800;
+  }
+
+  .ribbon-chip i{
+    color:var(--accent);
+  }
+
+  .hero-legal{
+    margin-top:16px;
+    padding:14px 16px;
+    border-radius:20px;
+    background:linear-gradient(135deg, rgba(0,109,119,.08), rgba(255,255,255,.92));
+    border:1px solid rgba(0,109,119,.10);
+    color:var(--muted);
+    line-height:1.6;
+  }
+
+  .hero-legal strong{
+    color:var(--primary-dark);
+  }
+
+  .content-grid{
+    display:grid;
+    grid-template-columns:minmax(0, .9fr) minmax(0, 1.1fr);
+    gap:24px;
+    margin-top:26px;
+  }
+
+  .surface-card{
+    padding:28px;
+    border-radius:var(--radius-lg);
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,.7);
+    box-shadow:var(--shadow);
+  }
+
+  .section-label{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+    color:var(--primary-dark);
+    font-size:13px;
+    font-weight:800;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+  }
+
+  .section-title{
+    margin:0 0 10px;
+    font-size:1.8rem;
+    font-weight:800;
+    letter-spacing:-.03em;
+  }
+
+  .section-copy{
+    margin:0;
+    color:var(--muted);
+    line-height:1.7;
+  }
+
+  .search-box{
+    margin-top:24px;
+    padding:28px;
+    border-radius:24px;
+    background:
+      radial-gradient(circle at top right, rgba(239,139,44,.16), transparent 34%),
+      linear-gradient(135deg, #ffffff, #f6fbfa);
+    border:2px solid rgba(0,109,119,.22);
+    box-shadow:0 22px 44px rgba(13,79,90,.10);
+    position:relative;
+  }
+
+  .access-box{
+    margin-top:24px;
+    padding:28px;
+    border-radius:24px;
+    background:
+      radial-gradient(circle at top right, rgba(0,109,119,.15), transparent 32%),
+      linear-gradient(135deg, #ffffff, #f4faf9);
+    border:2px solid rgba(20,57,53,.14);
+    box-shadow:0 22px 44px rgba(13,79,90,.08);
+    position:relative;
+  }
+
+  .access-box::before{
+    content:"Acceso";
+    position:absolute;
+    top:-14px;
+    left:18px;
+    padding:6px 12px;
+    border-radius:999px;
+    background:linear-gradient(135deg, var(--primary-dark), var(--primary));
+    color:#fff;
+    font-size:.76rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+
+  .access-copy{
+    margin:0 0 16px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+
+  .access-actions{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:14px;
+    align-items:center;
+  }
+
+  .search-box::before{
+    content:"Paso 1";
+    position:absolute;
+    top:-14px;
+    left:18px;
+    padding:6px 12px;
+    border-radius:999px;
+    background:linear-gradient(135deg, var(--accent), #d97706);
+    color:#fff;
+    font-size:.76rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+
+  .form-label{
+    font-weight:700;
+    color:var(--ink);
+    margin-bottom:8px;
+  }
+
+  .form-control,
+  .form-select{
+    min-height:50px;
+    border-radius:16px;
+    border:1px solid rgba(23,49,42,.14);
+    padding:12px 16px;
+    font-size:.98rem;
+    color:var(--ink);
+    background:#fff;
+    box-shadow:none;
+  }
+
+  .form-control:focus,
+  .form-select:focus{
+    border-color:rgba(31,107,87,.45);
+    box-shadow:0 0 0 4px rgba(31,107,87,.10);
+  }
+
+  .btn{
+    border:none;
+    border-radius:999px;
+    min-height:50px;
+    padding:12px 22px;
+    font-weight:800;
+    letter-spacing:.01em;
+  }
+
+  .btn-primary{
+    background:linear-gradient(135deg, var(--primary), var(--primary-dark));
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus{
+    background:linear-gradient(135deg, #1f755f, #123f33);
+  }
+
+  .btn-success{
+    background:linear-gradient(135deg, #2e9768, #1f6d4d);
+  }
+
+  .btn-warning{
+    color:#fff;
+    background:linear-gradient(135deg, #db8a4e, #bf6430);
+  }
+
+  .btn-outline-soft{
+    color:var(--primary-dark);
+    background:#fff;
+    border:1px solid rgba(31,107,87,.18);
+  }
+
+  .logout-btn{
+    min-height:44px;
+    padding:10px 18px;
+  }
+
+  .helper-line{
+    margin-top:12px;
+    color:var(--primary-dark);
+    font-size:.95rem;
+    font-weight:700;
+    line-height:1.5;
+  }
+
+  .search-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+    color:var(--primary-dark);
+    font-size:1.06rem;
+    font-weight:800;
+  }
+
+  .search-title i{
+    color:var(--accent);
+  }
+
+  .dni-label{
+    font-size:1.05rem;
+    color:var(--primary-dark);
+  }
+
+  .dni-spotlight{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:14px;
+    align-items:center;
+    margin-top:8px;
+  }
+
+  .dni-input{
+    min-height:70px;
+    border-radius:20px;
+    border:2px solid rgba(0,109,119,.24);
+    padding:16px 20px;
+    font-size:1.5rem;
+    font-weight:800;
+    letter-spacing:.18em;
+    text-align:center;
+    color:var(--primary-dark);
+    box-shadow:0 12px 26px rgba(13,79,90,.07);
+  }
+
+  .dni-input::placeholder{
+    font-size:1.02rem;
+    font-weight:700;
+    letter-spacing:.12em;
+    color:rgba(13,79,90,.45);
+  }
+
+  .dni-input:focus{
+    border-color:rgba(239,139,44,.82);
+    box-shadow:0 0 0 5px rgba(239,139,44,.16);
+  }
+
+  .btn-search-main{
+    min-height:70px;
+    padding:14px 28px;
+    font-size:1rem;
+    box-shadow:0 18px 34px rgba(13,79,90,.18);
+    white-space:nowrap;
+  }
+
+  .notice{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    margin-top:18px;
+    padding:18px;
+    border-radius:20px;
+    background:linear-gradient(135deg, rgba(255,255,255,.92), rgba(249,252,250,.82));
+    border:1px solid rgba(23,49,42,.09);
+  }
+
+  .notice i{
+    font-size:1.15rem;
+    color:var(--accent);
+  }
+
+  .notice strong{
+    display:block;
+    margin-bottom:4px;
+  }
+
+  .workspace{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  .summary-card{
+    position:sticky;
+    top:24px;
+    overflow:hidden;
+  }
+
+  .collaborator-shell{
+    margin-top:18px;
+    padding:20px;
+    border-radius:24px;
+    background:linear-gradient(180deg, rgba(31,107,87,.07), rgba(255,255,255,.96));
+    border:1px solid rgba(31,107,87,.12);
+  }
+
+  .collaborator-name{
+    display:block;
+    margin-bottom:6px;
+    font-size:1.2rem;
+    font-weight:800;
+    line-height:1.35;
+  }
+
+  .chip-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:14px;
+  }
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 14px;
+    border-radius:999px;
+    background:rgba(255,255,255,.86);
+    border:1px solid rgba(23,49,42,.09);
+    color:var(--primary-dark);
+    font-size:.9rem;
+    font-weight:700;
+  }
+
+  .panel-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:18px;
+  }
+
+  .panel-header h3{
+    margin:0;
+    font-size:1.15rem;
+    font-weight:800;
+  }
+
+  .panel-header p{
+    margin:8px 0 0;
+    color:var(--muted);
+    line-height:1.6;
+  }
+
+  .benef-section{
+    padding:22px;
+    border-radius:24px;
+    border:1px solid rgba(23,49,42,.08);
+    background:#fff;
+  }
+
+  .benef-section.primary{
+    background:linear-gradient(180deg, rgba(31,107,87,.05), rgba(255,255,255,1));
+  }
+
+  .benef-section.secondary{
+    background:linear-gradient(180deg, rgba(217,123,65,.08), rgba(255,255,255,1));
+  }
+
+  .benef-list{
+    display:grid;
+    gap:16px;
+  }
+
+  .empty-state{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:18px;
+    border-radius:18px;
+    background:rgba(245,248,246,.9);
+    border:1px dashed rgba(23,49,42,.15);
+    color:var(--muted);
+  }
+
+  .empty-state i{
+    font-size:1.2rem;
+    color:var(--primary);
+  }
+
+  .benef-card{
+    padding:18px;
+    border-radius:20px;
+    border:1px solid rgba(23,49,42,.09);
+    background:#fff;
+    box-shadow:0 12px 28px rgba(22,52,44,.05);
+  }
+
+  .benef-card.primary{
+    border-left:5px solid var(--primary);
+  }
+
+  .benef-card.secondary{
+    border-left:5px solid var(--accent);
+  }
+
+  .benef-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:12px;
+  }
+
+  .benef-grid .full{
+    grid-column:1 / -1;
+  }
+
+  .mini-note{
+    margin-top:12px;
+    color:var(--muted);
+    font-size:.9rem;
+  }
+
+  .status-line{
+    min-height:28px;
+    margin-top:12px;
+    font-size:.93rem;
+    font-weight:700;
+  }
+
+  .status-line.ok{
+    color:var(--success);
+  }
+
+  .status-line.error{
+    color:#b64141;
+  }
+
+  .status-line.loading{
+    color:var(--primary-dark);
+  }
+
+  .summary-list{
+    display:grid;
+    gap:12px;
+    margin-top:18px;
+  }
+
+  .summary-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    padding:14px 16px;
+    border-radius:18px;
+    background:var(--bg-soft);
+    border:1px solid rgba(23,49,42,.07);
+  }
+
+  .summary-item span{
+    color:var(--muted);
+    font-size:.92rem;
+    font-weight:700;
+  }
+
+  .summary-item strong{
+    font-size:1.12rem;
+  }
+
+  .pdf-zone{
+    margin-top:18px;
+    padding:20px;
+    border-radius:24px;
+    background:
+      radial-gradient(circle at top right, rgba(239,139,44,.20), transparent 28%),
+      linear-gradient(135deg, rgba(13,79,90,.98), rgba(0,109,119,.92));
+    color:#fff;
+  }
+
+  .pdf-zone p{
+    margin:8px 0 18px;
+    color:rgba(255,255,255,.8);
+    line-height:1.6;
+  }
+
+  .pdf-zone .btn{
+    width:100%;
+    background:#fff;
+    color:var(--primary-dark);
+  }
+
+  .pdf-zone .btn:hover,
+  .pdf-zone .btn:focus{
+    background:#f2f7f4;
+  }
+
+  .feedback{
+    min-height:24px;
+    margin-top:14px;
+    color:rgba(255,255,255,.92);
+    font-size:.92rem;
+    font-weight:700;
+  }
+
+  .screen-hidden{
+    display:none !important;
+  }
+
+  @media (max-width: 991.98px){
+    .hero-grid,
+    .content-grid{
+      grid-template-columns:1fr;
+    }
+
+    .summary-card{
+      position:static;
+    }
+  }
+
+  @media (max-width: 767.98px){
+    .page-shell{
+      padding:14px 12px 32px;
+    }
+
+    .hero,
+    .surface-card{
+      padding:18px 16px;
+      border-radius:24px;
+    }
+
+    .panel-header{
+      flex-direction:column;
+    }
+
+    .benef-grid{
+      grid-template-columns:1fr;
+    }
+
+    .chip-row{
+      flex-direction:column;
+      align-items:stretch;
+    }
+
+    .dni-spotlight{
+      grid-template-columns:1fr;
+    }
+
+    .access-actions{
+      grid-template-columns:1fr;
+    }
+
+    .dni-input,
+    .btn-search-main{
+      min-height:60px;
+    }
+  }
+</style>
+</head>
+
+<body>
+  <main class="page-shell">
+    <div class="layout">
+      <section class="hero">
+        <div class="eyebrow">
+          <i class="bi bi-shield-check"></i>
+          Declaracion Vida Ley
+        </div>
+
+        <div class="hero-grid">
+          <div>
+            <h1>Registro de Beneficiarios Vida Ley.</h1>
+
+            <div class="hero-ribbon">
+              <div class="ribbon-chip">
+                <i class="bi bi-building-check"></i>
+                Uso exclusivo interno
+              </div>
+              <div class="ribbon-chip">
+                <i class="bi bi-file-lock2"></i>
+                Datos protegidos
+              </div>
+              <div class="ribbon-chip">
+                <i class="bi bi-journal-text"></i>
+                Registro Vida Ley
+              </div>
+            </div>
+
+            <div class="hero-legal">
+              <strong>Proteccion de datos personales:</strong>
+              la informacion consignada en este modulo es de uso exclusivo para el registro de Vida Ley y debe ser tratada con caracter confidencial.
+            </div>
+          </div>
+
+          <aside class="hero-panel">
+            <div>
+              <div class="mini-label">Proteccion de datos</div>
+              <strong>Uso exclusivo para el registro de Vida Ley - Ley 29733</strong>
+            </div>
+            <p>
+              Aqui podras registrar a tus beneficiarios y completar tu informacion
+              de manera segura y confidencial.
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="surface-card">
+          <div class="section-label">
+            <i class="bi bi-search-heart"></i>
+            Inicio
+          </div>
+          <h2 class="section-title">Ingresa tus datos</h2>
+          <p class="section-copy">
+            Ingresa tu DNI para continuar con el registro de tus beneficiarios.
+          </p>
+
+          <div id="access_gate" class="access-box screen-hidden">
+            <div class="search-title">
+              <i class="bi bi-shield-lock"></i>
+              Acceso protegido
+            </div>
+            <p class="access-copy">
+              Antes de consultar DNIs o registrar beneficiarios, ingresa la clave de acceso interna.
+            </p>
+            <div class="access-actions">
+              <input
+                id="access_password"
+                type="password"
+                class="form-control"
+                maxlength="80"
+                placeholder="Clave de acceso"
+                autocomplete="current-password"
+              >
+              <button id="btn_login" onclick="iniciarSesion()" class="btn btn-primary">
+                <i class="bi bi-box-arrow-in-right"></i> Ingresar
+              </button>
+            </div>
+            <div id="access_status" class="status-line"></div>
+          </div>
+
+          <div id="pantalla_busqueda" class="search-box">
+            <div class="search-title">
+              <i class="bi bi-person-badge"></i>
+              Empieza ingresando tu DNI
+            </div>
+            <label for="dni_buscar" class="form-label dni-label">Tu DNI</label>
+            <div class="dni-spotlight">
+              <input
+                id="dni_buscar"
+                class="form-control dni-input"
+                inputmode="numeric"
+                maxlength="8"
+                placeholder="12345678"
+                autocomplete="off"
+              >
+
+              <button id="btn_buscar" onclick="buscar()" class="btn btn-primary btn-search-main">
+                <i class="bi bi-search"></i> Buscar
+              </button>
+            </div>
+
+            <div class="helper-line">Escribe tu DNI y presiona buscar para continuar.</div>
+          </div>
+
+          <div class="notice">
+            <i class="bi bi-info-circle"></i>
+            <div>
+              <strong>Uso reservado para registro interno</strong>
+              Los datos que ingreses en este formulario se usaran exclusivamente para tu registro de Vida Ley.
+            </div>
+          </div>
+        </div>
+
+        <div class="surface-card summary-card">
+          <div class="panel-header">
+            <div>
+              <div class="section-label">
+                <i class="bi bi-stars"></i>
+                Resumen
+              </div>
+              <h2 class="section-title">Estado del registro</h2>
+              <p class="section-copy">
+                Aqui se actualiza en tiempo real el avance del proceso y el tipo de beneficiario registrado.
+              </p>
+            </div>
+            <button id="btn_logout" onclick="cerrarSesion()" class="btn btn-outline-soft logout-btn screen-hidden">
+              <i class="bi bi-box-arrow-right"></i> Salir
+            </button>
+          </div>
+
+          <div id="collaborator_empty" class="empty-state" style="margin-top:18px;">
+            <i class="bi bi-person-vcard"></i>
+            <div>Aun no has ingresado tu DNI.</div>
+          </div>
+
+          <div id="pantalla_form" class="screen-hidden">
+            <div class="collaborator-shell">
+              <span id="v_nombre" class="collaborator-name"></span>
+              <div class="chip-row">
+                <div class="chip">
+                  <i class="bi bi-credit-card-2-front"></i>
+                  DNI: <span id="v_dni"></span>
+                </div>
+                <div class="chip">
+                  <i class="bi bi-person"></i>
+                  Genero: <span id="v_genero"></span>
+                </div>
+                <div id="tipo_actual_chip" class="chip">
+                  <i class="bi bi-diagram-3"></i>
+                  Tipo activo: <span id="tipo_actual">Sin definir</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="summary-list">
+              <div class="summary-item">
+                <span>Beneficiarios principales</span>
+                <strong id="count_primeros">0</strong>
+              </div>
+              <div class="summary-item">
+                <span>Beneficiarios secundarios</span>
+                <strong id="count_segundos">0</strong>
+              </div>
+              <div class="summary-item">
+                <span>Total guardados</span>
+                <strong id="count_total">0</strong>
+              </div>
+            </div>
+
+            <div class="pdf-zone">
+              <strong>Documento final</strong>
+              <p>
+                Cuando termines, se abrira el PDF en una nueva pestana y la pantalla regresara al inicio.
+              </p>
+              <button id="btn_pdf" onclick="generarPDF()" class="btn">
+                <i class="bi bi-file-earmark-pdf"></i> Generar PDF
+              </button>
+              <div id="pdf_feedback" class="feedback"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="workspace" class="workspace screen-hidden">
+        <div class="benef-section primary">
+          <div class="panel-header">
+            <div>
+              <h3>Tus primeros beneficiarios</h3>
+              <p>Aqui puedes registrar conyuge, hijo o conviviente dentro de tu declaracion.</p>
+            </div>
+            <button onclick="agregar('PRIMERO')" class="btn btn-success">
+              <i class="bi bi-plus-lg"></i> Agregar primero
+            </button>
+          </div>
+
+          <div id="lista_primeros" class="benef-list">
+            <div class="empty-state" id="empty_primeros">
+              <i class="bi bi-people"></i>
+              <div>Aun no registras beneficiarios principales.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="benef-section secondary">
+          <div class="panel-header">
+            <div>
+              <h3>Tus segundos beneficiarios</h3>
+              <p>Aqui puedes registrar padre, madre o hermano como alternativa dentro de tu declaracion.</p>
+            </div>
+            <button onclick="agregar('SEGUNDO')" class="btn btn-warning">
+              <i class="bi bi-plus-lg"></i> Agregar segundo
+            </button>
+          </div>
+
+          <div id="lista_segundos" class="benef-list">
+            <div class="empty-state" id="empty_segundos">
+              <i class="bi bi-people-fill"></i>
+              <div>Aun no registras beneficiarios secundarios.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+<script>
+  let colaboradorData = null;
+  let contador = 0;
+  let tipoGuardado = null;
+  let guardadosPrimeros = 0;
+  let guardadosSegundos = 0;
+  let authEnabled = false;
+  let autenticado = false;
+
+  const accessGate = document.getElementById("access_gate");
+  const accessPassword = document.getElementById("access_password");
+  const accessStatus = document.getElementById("access_status");
+  const btnLogin = document.getElementById("btn_login");
+  const btnLogout = document.getElementById("btn_logout");
+  const pantallaBusqueda = document.getElementById("pantalla_busqueda");
+  const pantallaForm = document.getElementById("pantalla_form");
+  const workspace = document.getElementById("workspace");
+  const collaboratorEmpty = document.getElementById("collaborator_empty");
+  const inputDni = document.getElementById("dni_buscar");
+  const btnBuscar = document.getElementById("btn_buscar");
+  const btnPdf = document.getElementById("btn_pdf");
+  const pdfFeedback = document.getElementById("pdf_feedback");
+  const countPrimeros = document.getElementById("count_primeros");
+  const countSegundos = document.getElementById("count_segundos");
+  const countTotal = document.getElementById("count_total");
+  const tipoActual = document.getElementById("tipo_actual");
+  const listaPrimeros = document.getElementById("lista_primeros");
+  const listaSegundos = document.getElementById("lista_segundos");
+
+  inputDni.addEventListener("keydown", (event) => {
+    if(event.key === "Enter"){
+      buscar();
+    }
+  });
+
+  accessPassword.addEventListener("keydown", (event) => {
+    if(event.key === "Enter"){
+      iniciarSesion();
+    }
+  });
+
+  document.addEventListener("input", (event) => {
+    if(event.target.matches(".dni-only")){
+      event.target.value = soloNumeros(event.target.value, 8);
+    }
+  });
+
+  function normalizarTexto(valor){
+    return String(valor || "").trim();
+  }
+
+  function soloNumeros(valor, maximo){
+    return String(valor || "").replace(/\D/g, "").slice(0, maximo);
+  }
+
+  function alternarAcceso(permitido){
+    autenticado = permitido || !authEnabled;
+    accessGate.classList.toggle("screen-hidden", !authEnabled || permitido);
+    pantallaBusqueda.classList.toggle("screen-hidden", authEnabled && !permitido);
+    btnLogout.classList.toggle("screen-hidden", !authEnabled || !permitido);
+  }
+
+  function setLoginLoading(loading){
+    btnLogin.disabled = loading;
+    btnLogin.innerHTML = loading
+      ? '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Ingresando...'
+      : '<i class="bi bi-box-arrow-in-right"></i> Ingresar';
+  }
+
+  function limpiarEstadoAcceso(){
+    accessStatus.className = "status-line";
+    accessStatus.innerText = "";
+  }
+
+  async function leerJSON(response){
+    try{
+      return await response.json();
+    }catch(error){
+      return { ok: false, msg: "Respuesta invalida del servidor." };
+    }
+  }
+
+  function manejarSesionExpirada(mensaje){
+    reiniciarInicio();
+    alternarAcceso(false);
+    accessStatus.className = "status-line error";
+    accessStatus.innerText = mensaje || "Tu sesion expiro. Ingresa nuevamente la clave.";
+    accessPassword.value = "";
+    setTimeout(() => accessPassword.focus(), 150);
+  }
+
+  function actualizarResumen(){
+    countPrimeros.innerText = guardadosPrimeros;
+    countSegundos.innerText = guardadosSegundos;
+    countTotal.innerText = guardadosPrimeros + guardadosSegundos;
+    tipoActual.innerText = tipoGuardado ? tipoGuardado : "Sin definir";
+  }
+
+  function alternarPantallas(mostrarFormulario){
+    pantallaBusqueda.classList.toggle("screen-hidden", mostrarFormulario);
+    pantallaForm.classList.toggle("screen-hidden", !mostrarFormulario);
+    workspace.classList.toggle("screen-hidden", !mostrarFormulario);
+    collaboratorEmpty.classList.toggle("screen-hidden", mostrarFormulario);
+  }
+
+  function limpiarListas(){
+    listaPrimeros.innerHTML = `
+      <div class="empty-state" id="empty_primeros">
+        <i class="bi bi-people"></i>
+        <div>Aun no registras beneficiarios principales.</div>
+      </div>`;
+
+    listaSegundos.innerHTML = `
+      <div class="empty-state" id="empty_segundos">
+        <i class="bi bi-people-fill"></i>
+        <div>Aun no registras beneficiarios secundarios.</div>
+      </div>`;
+  }
+
+  function reiniciarInicio(){
+    colaboradorData = null;
+    contador = 0;
+    tipoGuardado = null;
+    guardadosPrimeros = 0;
+    guardadosSegundos = 0;
+
+    document.getElementById("v_nombre").innerText = "";
+    document.getElementById("v_dni").innerText = "";
+    document.getElementById("v_genero").innerText = "";
+
+    inputDni.value = "";
+    pdfFeedback.innerText = "";
+    limpiarListas();
+    actualizarResumen();
+    alternarPantallas(false);
+    collaboratorEmpty.classList.toggle("screen-hidden", authEnabled && !autenticado);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const targetInput = authEnabled && !autenticado ? accessPassword : inputDni;
+    setTimeout(() => targetInput.focus(), 250);
+  }
+
+  function marcarVacios(){
+    const emptyPrimeros = document.getElementById("empty_primeros");
+    const emptySegundos = document.getElementById("empty_segundos");
+
+    if(emptyPrimeros && listaPrimeros.children.length > 1){
+      emptyPrimeros.remove();
+    }
+
+    if(emptySegundos && listaSegundos.children.length > 1){
+      emptySegundos.remove();
+    }
+  }
+
+  function setBusquedaLoading(loading){
+    btnBuscar.disabled = loading;
+    btnBuscar.innerHTML = loading
+      ? '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Buscando...'
+      : '<i class="bi bi-search"></i> Buscar';
+  }
+
+  function setPdfLoading(loading){
+    btnPdf.disabled = loading;
+    btnPdf.innerHTML = loading
+      ? '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Generando PDF...'
+      : '<i class="bi bi-file-earmark-pdf"></i> Generar PDF';
+  }
+
+  async function buscar(){
+    if(authEnabled && !autenticado){
+      manejarSesionExpirada("Ingresa la clave interna para continuar.");
+      return;
+    }
+
+    const dni = soloNumeros(inputDni.value, 8);
+
+    if(!dni){
+      alert("Ingrese un DNI para continuar.");
+      inputDni.focus();
+      return;
+    }
+
+    if(dni.length !== 8){
+      alert("El DNI debe tener 8 digitos.");
+      inputDni.focus();
+      return;
+    }
+
+    inputDni.value = dni;
+
+    setBusquedaLoading(true);
+
+    try{
+      const r = await fetch("/colaborador/" + dni);
+      const d = await leerJSON(r);
+
+      if(r.status === 401){
+        manejarSesionExpirada(d.msg);
+        return;
+      }
+
+      if(!r.ok && d.msg){
+        alert(d.msg);
+        return;
+      }
+
+      if(!d.ok){
+        alert("No encontramos tus datos con ese DNI.");
+        return;
+      }
+
+      colaboradorData = d.data;
+      document.getElementById("v_nombre").innerText =
+        d.data.apellido_paterno + " " + d.data.apellido_materno + ", " + d.data.nombres;
+      document.getElementById("v_dni").innerText = d.data.dni;
+      document.getElementById("v_genero").innerText = d.data.genero;
+
+      limpiarListas();
+      actualizarResumen();
+      alternarPantallas(true);
+      workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+    }catch(error){
+      alert("No se pudieron consultar tus datos.");
+      console.error(error);
+    }finally{
+      setBusquedaLoading(false);
+    }
+  }
+
+  function agregar(tipo){
+    if(authEnabled && !autenticado){
+      manejarSesionExpirada();
+      return;
+    }
+
+    if(tipoGuardado && tipoGuardado !== tipo){
+      alert("Ya registraste otro tipo de beneficiario en este flujo.");
+      return;
+    }
+
+    contador++;
+
+    const html = `
+      <article class="benef-card ${tipo === "PRIMERO" ? "primary" : "secondary"}" id="card_${contador}">
+        <div class="benef-grid">
+          <input id="dni_${contador}" class="form-control dni-only" maxlength="8" inputmode="numeric" placeholder="DNI" autocomplete="off">
+          <input id="nom_${contador}" class="form-control" maxlength="100" placeholder="Nombres" autocomplete="off">
+          <input id="ap_${contador}" class="form-control" maxlength="50" placeholder="Apellido paterno" autocomplete="off">
+          <input id="am_${contador}" class="form-control" maxlength="50" placeholder="Apellido materno" autocomplete="off">
+          <input id="dom_${contador}" class="form-control full" maxlength="250" placeholder="Domicilio" autocomplete="off">
+
+          <select id="par_${contador}" class="form-select">
+            ${tipo === "PRIMERO"
+              ? '<option value="1">Conyuge</option><option value="2">Hijo</option><option value="4">Conviviente</option>'
+              : '<option value="3">Padre</option><option value="5">Madre</option><option value="6">Hermano</option>'}
+          </select>
+
+          <select id="gen_${contador}" class="form-select">
+            <option value="1">Masculino</option>
+            <option value="2">Femenino</option>
+          </select>
+
+          <input id="fn_${contador}" type="date" class="form-control full">
+        </div>
+
+        <div class="mini-note">Completa los datos y guarda el registro para que aparezca en el PDF.</div>
+
+        <button id="btn_guardar_${contador}" onclick="guardar(${contador}, '${tipo}')" class="btn btn-primary w-100 mt-3">
+          Guardar beneficiario
+        </button>
+
+        <div id="msg_${contador}" class="status-line"></div>
+      </article>`;
+
+    if(tipo === "PRIMERO"){
+      listaPrimeros.insertAdjacentHTML("beforeend", html);
+    }else{
+      listaSegundos.insertAdjacentHTML("beforeend", html);
+    }
+
+    marcarVacios();
+    const card = document.getElementById("card_" + contador);
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  async function guardar(id, tipo){
+    if(authEnabled && !autenticado){
+      manejarSesionExpirada();
+      return;
+    }
+
+    if(!colaboradorData){
+      alert("Primero ingresa tu DNI.");
+      return;
+    }
+
+    const msg = document.getElementById("msg_" + id);
+    const btnGuardar = document.getElementById("btn_guardar_" + id);
+
+    const data = {
+      id_colaborador: colaboradorData.id,
+      tipo: tipo,
+      dni: soloNumeros(document.getElementById("dni_" + id).value, 8),
+      nombres: normalizarTexto(document.getElementById("nom_" + id).value),
+      apellido_paterno: normalizarTexto(document.getElementById("ap_" + id).value),
+      apellido_materno: normalizarTexto(document.getElementById("am_" + id).value),
+      domicilio: normalizarTexto(document.getElementById("dom_" + id).value),
+      id_parentesco: parseInt(document.getElementById("par_" + id).value, 10),
+      id_genero: parseInt(document.getElementById("gen_" + id).value, 10),
+      fecha_nacimiento: document.getElementById("fn_" + id).value
+    };
+
+    if(
+      !data.dni ||
+      !data.nombres ||
+      !data.apellido_paterno ||
+      !data.apellido_materno ||
+      !data.domicilio ||
+      !data.fecha_nacimiento
+    ){
+      msg.className = "status-line error";
+      msg.innerText = "Complete todos los campos antes de guardar.";
+      return;
+    }
+
+    const dnisRegistrados = Array.from(document.querySelectorAll('[id^="dni_"]'))
+      .filter((input) => input.id !== "dni_" + id)
+      .map((input) => normalizarTexto(input.value))
+      .filter(Boolean);
+
+    if(dnisRegistrados.includes(data.dni)){
+      msg.className = "status-line error";
+      msg.innerText = "Ya ingresaste este DNI.";
+      return;
+    }
+
+    tipoGuardado = tipo;
+    actualizarResumen();
+    msg.className = "status-line loading";
+    msg.innerText = "Guardando...";
+    btnGuardar.disabled = true;
+
+    try{
+      const r = await fetch("/guardar-beneficiario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const res = await leerJSON(r);
+
+      if(r.status === 401){
+        btnGuardar.disabled = false;
+        manejarSesionExpirada(res.msg);
+        return;
+      }
+
+      if(res.ok){
+        if(!btnGuardar.dataset.saved){
+          btnGuardar.dataset.saved = "true";
+          if(tipo === "PRIMERO"){
+            guardadosPrimeros++;
+          }else{
+            guardadosSegundos++;
+          }
+        }
+
+        actualizarResumen();
+        msg.className = "status-line ok";
+        msg.innerText = "Beneficiario guardado correctamente.";
+      }else{
+        msg.className = "status-line error";
+        msg.innerText = res.msg || "No se pudo guardar.";
+        btnGuardar.disabled = false;
+      }
+    }catch(error){
+      msg.className = "status-line error";
+      msg.innerText = "Error de conexion al guardar.";
+      btnGuardar.disabled = false;
+      console.error(error);
+    }
+  }
+
+  async function generarPDF(){
+    if(authEnabled && !autenticado){
+      manejarSesionExpirada();
+      return;
+    }
+
+    if(!colaboradorData){
+      alert("Ingresa tu DNI antes de generar el PDF.");
+      return;
+    }
+
+    setPdfLoading(true);
+    pdfFeedback.innerText = "Preparando documento...";
+
+    try{
+      const r = await fetch("/generar-pdf", {
+        method: "POST",
+        headers: {
+          Accept: "application/pdf"
+        }
+      });
+
+      if(r.status === 401){
+        const res = await leerJSON(r);
+        manejarSesionExpirada(res.msg);
+        return;
+      }
+
+      if(!r.ok){
+        const res = await leerJSON(r);
+        pdfFeedback.innerText = res.msg || "No se pudo generar el PDF.";
+        return;
+      }
+
+      const pdfBlob = await r.blob();
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, "_blank", "noopener");
+      pdfFeedback.innerText = "PDF generado. Volviendo al inicio...";
+
+      setTimeout(() => {
+        reiniciarInicio();
+      }, 450);
+
+      setTimeout(() => {
+        URL.revokeObjectURL(pdfUrl);
+      }, 60000);
+    }catch(error){
+      pdfFeedback.innerText = "Error al generar el PDF.";
+      console.error(error);
+    }finally{
+      setPdfLoading(false);
+    }
+  }
+
+  async function iniciarSesion(){
+    limpiarEstadoAcceso();
+
+    const password = normalizarTexto(accessPassword.value);
+
+    if(!password){
+      accessStatus.className = "status-line error";
+      accessStatus.innerText = "Ingresa la clave de acceso.";
+      accessPassword.focus();
+      return;
+    }
+
+    setLoginLoading(true);
+
+    try{
+      const r = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+
+      const res = await leerJSON(r);
+
+      if(res.ok){
+        accessPassword.value = "";
+        alternarAcceso(true);
+        accessStatus.className = "status-line ok";
+        accessStatus.innerText = "Acceso concedido.";
+        setTimeout(() => {
+          limpiarEstadoAcceso();
+          inputDni.focus();
+        }, 250);
+        return;
+      }
+
+      accessStatus.className = "status-line error";
+      accessStatus.innerText = res.msg || "No se pudo validar la clave.";
+    }catch(error){
+      accessStatus.className = "status-line error";
+      accessStatus.innerText = "No se pudo validar la clave.";
+      console.error(error);
+    }finally{
+      setLoginLoading(false);
+    }
+  }
+
+  async function cerrarSesion(){
+    try{
+      await fetch("/auth/logout", { method: "POST" });
+    }catch(error){
+      console.error(error);
+    }finally{
+      limpiarEstadoAcceso();
+      manejarSesionExpirada("Sesion cerrada correctamente.");
+      accessStatus.className = "status-line ok";
+      accessStatus.innerText = "Sesion cerrada correctamente.";
+    }
+  }
+
+  async function cargarEstadoAcceso(){
+    limpiarEstadoAcceso();
+
+    try{
+      const r = await fetch("/auth/status");
+      const res = await leerJSON(r);
+
+      authEnabled = Boolean(res.authEnabled);
+      reiniciarInicio();
+      alternarAcceso(Boolean(res.authenticated));
+
+      if(authEnabled && !res.authenticated){
+        accessStatus.className = "status-line";
+        accessStatus.innerText = "Ingresa la clave para habilitar el registro.";
+        accessPassword.focus();
+      }
+    }catch(error){
+      authEnabled = true;
+      alternarAcceso(false);
+      accessStatus.className = "status-line error";
+      accessStatus.innerText = "No se pudo validar el acceso con el servidor.";
+      console.error(error);
+    }
+  }
+
+  actualizarResumen();
+  inputDni.value = soloNumeros(inputDni.value, 8);
+  inputDni.classList.add("dni-only");
+  cargarEstadoAcceso();
+</script>
+</body>
+</html>
