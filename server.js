@@ -124,6 +124,8 @@ app.post("/guardar-beneficiario", async (req, res) => {
 // ===============================
 // 📄 PDF
 // ===============================
+const PDFDocument = require("pdfkit");
+
 app.post("/generar-pdf", async (req, res) => {
   try {
 
@@ -141,47 +143,48 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    const template = fs.readFileSync(
-      path.join(__dirname, "pdfs/template.html"),
-      "utf8"
-    );
+    const doc = new PDFDocument();
+    let buffers = [];
 
-    let filas = "";
+    doc.on("data", buffers.push.bind(buffers));
 
-    (beneficiarios || []).forEach(b => {
-      filas += `
-        <tr>
-          <td>${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}</td>
-        </tr>
-      `;
+    doc.on("end", async () => {
+      const pdfBuffer = Buffer.concat(buffers);
+
+      const fileName = `vida_${Date.now()}.pdf`;
+
+      await supabase.storage
+        .from("pdfs")
+        .upload(fileName, pdfBuffer, {
+          contentType: "application/pdf"
+        });
+
+      const { data } = await supabase.storage
+        .from("pdfs")
+        .createSignedUrl(fileName, 300);
+
+      res.json({ ok:true, url:data.signedUrl });
     });
 
-    const html = template
-      .replace("{{nombre}}", col.nombres)
-      .replace("{{filas_primero}}", filas);
+    // CONTENIDO PDF
+    doc.fontSize(16).text("DECLARACIÓN VIDA LEY", { align:"center" });
+    doc.moveDown();
 
-    const browser = await puppeteer.launch({ headless:true, args:["--no-sandbox"] });
-    const page = await browser.newPage();
-    await page.setContent(html);
+    doc.text(`Nombre: ${col.nombres}`);
+    doc.text(`DNI: ${col.dni}`);
+    doc.moveDown();
 
-    const pdfBuffer = await page.pdf({ format:"A4" });
+    doc.text("Beneficiarios:");
+    doc.moveDown();
 
-    await browser.close();
+    (beneficiarios || []).forEach((b, i) => {
+      doc.text(`${i+1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`);
+    });
 
-    const fileName = `vida_${Date.now()}.pdf`;
-
-    await supabase.storage
-      .from("pdfs")
-      .upload(fileName, pdfBuffer);
-
-    const { data } = await supabase.storage
-      .from("pdfs")
-      .createSignedUrl(fileName, 300);
-
-    res.json({ ok:true, url:data.signedUrl });
+    doc.end();
 
   } catch (err) {
-    console.error(err);
+    console.error("ERROR PDF:", err);
     res.status(500).json({ ok:false });
   }
 });
