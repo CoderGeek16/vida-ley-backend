@@ -3,9 +3,7 @@ require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require('@supabase/supabase-js');
-const puppeteer = require("puppeteer");
-const fs = require("fs");
-const path = require("path");
+const PDFDocument = require("pdfkit");
 
 const app = express();
 
@@ -122,7 +120,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
 });
 
 // ===============================
-// 📄 PDF
+// 📄 GENERAR PDF (PDFKIT)
 // ===============================
 app.post("/generar-pdf", async (req, res) => {
   try {
@@ -141,44 +139,56 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    const template = fs.readFileSync(
-      path.join(__dirname, "pdfs/template.html"),
-      "utf8"
-    );
+    const doc = new PDFDocument();
+    let buffers = [];
 
-    let filas = "";
+    doc.on("data", buffers.push.bind(buffers));
 
-    (beneficiarios || []).forEach(b => {
-      filas += `
-        <tr>
-          <td>${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}</td>
-        </tr>
-      `;
+    doc.on("end", async () => {
+      const pdfBuffer = Buffer.concat(buffers);
+
+      const fileName = `vida_${Date.now()}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("pdfs")
+        .upload(fileName, pdfBuffer, {
+          contentType: "application/pdf",
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+        return res.status(500).json({ ok:false });
+      }
+
+      const { data } = await supabase.storage
+        .from("pdfs")
+        .createSignedUrl(fileName, 300);
+
+      res.json({ ok:true, url:data.signedUrl });
     });
 
-    const html = template
-      .replace("{{nombre}}", col.nombres)
-      .replace("{{filas_primero}}", filas);
+    // CONTENIDO PDF
+    doc.fontSize(16).text("DECLARACIÓN JURADA VIDA LEY", { align:"center" });
+    doc.moveDown();
 
-    const browser = await puppeteer.launch({ headless:true, args:["--no-sandbox"] });
-    const page = await browser.newPage();
-    await page.setContent(html);
+    doc.fontSize(12);
+    doc.text(`Nombre: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
+    doc.text(`DNI: ${col.dni}`);
+    doc.moveDown();
 
-    const pdfBuffer = await page.pdf({ format:"A4" });
+    doc.text("BENEFICIARIOS:");
+    doc.moveDown();
 
-    await browser.close();
+    (beneficiarios || []).forEach((b, i) => {
+      doc.text(`${i+1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`);
+      doc.text(`   DNI: ${b.dni || ""}`);
+      doc.text(`   Parentesco: ${b.id_parentesco}`);
+      doc.text(`   Fecha Nac: ${b.fecha_nacimiento}`);
+      doc.moveDown();
+    });
 
-    const fileName = `vida_${Date.now()}.pdf`;
-
-    await supabase.storage
-      .from("pdfs")
-      .upload(fileName, pdfBuffer);
-
-    const { data } = await supabase.storage
-      .from("pdfs")
-      .createSignedUrl(fileName, 300);
-
-    res.json({ ok:true, url:data.signedUrl });
+    doc.end();
 
   } catch (err) {
     console.error(err);
@@ -189,31 +199,23 @@ app.post("/generar-pdf", async (req, res) => {
 // ===============================
 // 🔥 ADMIN ENDPOINTS
 // ===============================
-
-// colaboradores
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
-
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("colaboradores")
     .select("*");
 
   res.json({ ok:true, data });
-
 });
 
-// beneficiarios por colaborador
 app.get("/admin/beneficiarios/:id", checkAdmin, async (req, res) => {
-
   const { data } = await supabase
     .from("beneficiarios")
     .select("*")
     .eq("id_colaborador", req.params.id);
 
   res.json({ ok:true, data });
-
 });
 
-// historial
 app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
 
   const { data: col } = await supabase
@@ -231,15 +233,12 @@ app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
 
 });
 
-// total beneficiarios
 app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
-
   const { data } = await supabase
     .from("beneficiarios")
     .select("id");
 
   res.json({ ok:true, total:data.length });
-
 });
 
 // ===============================
