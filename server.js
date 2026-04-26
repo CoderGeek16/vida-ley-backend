@@ -3,9 +3,7 @@ require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require('@supabase/supabase-js');
-const puppeteer = require("puppeteer");
-const fs = require("fs");
-const path = require("path");
+const PDFDocument = require("pdfkit");
 
 const app = express();
 
@@ -79,7 +77,8 @@ app.get("/colaborador/:dni", async (req, res) => {
 
     res.json({ ok: true, data });
 
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.json({ ok: false });
   }
 });
@@ -109,7 +108,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
       .insert([data]);
 
     if (error) {
-      console.error(error);
+      console.error("ERROR INSERT:", error);
       return res.json({ ok: false });
     }
 
@@ -122,10 +121,8 @@ app.post("/guardar-beneficiario", async (req, res) => {
 });
 
 // ===============================
-// 📄 PDF
+// 📄 GENERAR PDF (SIN PUPPETEER)
 // ===============================
-const PDFDocument = require("pdfkit");
-
 app.post("/generar-pdf", async (req, res) => {
   try {
 
@@ -143,80 +140,96 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ margin: 40 });
     let buffers = [];
 
     doc.on("data", buffers.push.bind(buffers));
 
     doc.on("end", async () => {
-      const pdfBuffer = Buffer.concat(buffers);
+      try {
+        const pdfBuffer = Buffer.concat(buffers);
 
-      const fileName = `vida_${Date.now()}.pdf`;
+        const fileName = `vida_${Date.now()}.pdf`;
 
-      await supabase.storage
-        .from("pdfs")
-        .upload(fileName, pdfBuffer, {
-          contentType: "application/pdf"
-        });
+        const { error: uploadError } = await supabase.storage
+          .from("pdfs")
+          .upload(fileName, pdfBuffer, {
+            contentType: "application/pdf",
+            upsert: true
+          });
 
-      const { data } = await supabase.storage
-        .from("pdfs")
-        .createSignedUrl(fileName, 300);
+        if (uploadError) {
+          console.error("ERROR STORAGE:", uploadError);
+          return res.status(500).json({ ok:false });
+        }
 
-      res.json({ ok:true, url:data.signedUrl });
+        const { data } = await supabase.storage
+          .from("pdfs")
+          .createSignedUrl(fileName, 300);
+
+        res.json({ ok:true, url:data.signedUrl });
+
+      } catch (err) {
+        console.error("ERROR FINAL:", err);
+        res.status(500).json({ ok:false });
+      }
     });
 
-    // CONTENIDO PDF
-    doc.fontSize(16).text("DECLARACIÓN VIDA LEY", { align:"center" });
+    // ===============================
+    // ✨ CONTENIDO PDF
+    // ===============================
+
+    doc.fontSize(16).text("DECLARACIÓN JURADA VIDA LEY", { align:"center" });
     doc.moveDown();
 
-    doc.text(`Nombre: ${col.nombres}`);
+    doc.fontSize(12);
+    doc.text(`Nombre: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
     doc.text(`DNI: ${col.dni}`);
     doc.moveDown();
 
-    doc.text("Beneficiarios:");
+    doc.text("BENEFICIARIOS:");
     doc.moveDown();
 
     (beneficiarios || []).forEach((b, i) => {
       doc.text(`${i+1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`);
+      doc.text(`   DNI: ${b.dni || ""}`);
+      doc.text(`   Parentesco: ${b.id_parentesco}`);
+      doc.text(`   Fecha Nac: ${b.fecha_nacimiento}`);
+      doc.moveDown();
     });
 
     doc.end();
 
   } catch (err) {
-    console.error("ERROR PDF:", err);
+    console.error("ERROR GENERAL PDF:", err);
     res.status(500).json({ ok:false });
   }
 });
 
 // ===============================
-// 🔥 ADMIN ENDPOINTS
+// 🔥 ADMIN
 // ===============================
 
 // colaboradores
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
-
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("colaboradores")
     .select("*");
 
   res.json({ ok:true, data });
-
 });
 
-// beneficiarios por colaborador
+// beneficiarios
 app.get("/admin/beneficiarios/:id", checkAdmin, async (req, res) => {
-
   const { data } = await supabase
     .from("beneficiarios")
     .select("*")
     .eq("id_colaborador", req.params.id);
 
   res.json({ ok:true, data });
-
 });
 
-// historial
+// historial completo
 app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
 
   const { data: col } = await supabase
@@ -236,13 +249,11 @@ app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
 
 // total beneficiarios
 app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
-
   const { data } = await supabase
     .from("beneficiarios")
     .select("id");
 
   res.json({ ok:true, total:data.length });
-
 });
 
 // ===============================
