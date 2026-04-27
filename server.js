@@ -19,7 +19,7 @@ const supabase = createClient(
 );
 
 // ===============================
-// 🔐 ADMIN CONTROL
+// 🔐 ADMIN
 // ===============================
 let isAdmin = false;
 
@@ -50,9 +50,7 @@ app.post("/auth/logout", (req, res) => {
 });
 
 app.get("/auth/status", (req, res) => {
-  res.json({
-    authenticated: isAdmin
-  });
+  res.json({ authenticated: isAdmin });
 });
 
 // ===============================
@@ -77,7 +75,8 @@ app.get("/colaborador/:dni", async (req, res) => {
 
     res.json({ ok: true, data });
 
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.json({ ok: false });
   }
 });
@@ -107,7 +106,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
       .insert([data]);
 
     if (error) {
-      console.error(error);
+      console.error("ERROR INSERT:", error);
       return res.json({ ok: false });
     }
 
@@ -120,7 +119,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
 });
 
 // ===============================
-// 📄 GENERAR PDF (PDFKIT)
+// 📄 GENERAR PDF
 // ===============================
 app.post("/generar-pdf", async (req, res) => {
   try {
@@ -139,36 +138,43 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ margin: 40 });
     let buffers = [];
 
     doc.on("data", buffers.push.bind(buffers));
 
     doc.on("end", async () => {
-      const pdfBuffer = Buffer.concat(buffers);
+      try {
+        const pdfBuffer = Buffer.concat(buffers);
 
-      const fileName = `vida_${Date.now()}.pdf`;
+        const fileName = `vida_${Date.now()}.pdf`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("pdfs")
-        .upload(fileName, pdfBuffer, {
-          contentType: "application/pdf",
-          upsert: true
-        });
+        const { error: uploadError } = await supabase.storage
+          .from("pdfs")
+          .upload(fileName, pdfBuffer, {
+            contentType: "application/pdf",
+            upsert: true
+          });
 
-      if (uploadError) {
-        console.error(uploadError);
-        return res.status(500).json({ ok:false });
+        if (uploadError) {
+          console.error("ERROR STORAGE:", uploadError);
+          return res.status(500).json({ ok:false });
+        }
+
+        const { data } = await supabase.storage
+          .from("pdfs")
+          .createSignedUrl(fileName, 300);
+
+        res.json({ ok:true, url:data.signedUrl });
+
+      } catch (err) {
+        console.error("ERROR FINAL:", err);
+        res.status(500).json({ ok:false });
       }
-
-      const { data } = await supabase.storage
-        .from("pdfs")
-        .createSignedUrl(fileName, 300);
-
-      res.json({ ok:true, url:data.signedUrl });
     });
 
-    // CONTENIDO PDF
+    // ===== CONTENIDO PDF =====
+
     doc.fontSize(16).text("DECLARACIÓN JURADA VIDA LEY", { align:"center" });
     doc.moveDown();
 
@@ -191,14 +197,15 @@ app.post("/generar-pdf", async (req, res) => {
     doc.end();
 
   } catch (err) {
-    console.error(err);
+    console.error("ERROR PDF:", err);
     res.status(500).json({ ok:false });
   }
 });
 
 // ===============================
-// 🔥 ADMIN ENDPOINTS
+// 🔥 ADMIN
 // ===============================
+
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase
     .from("colaboradores")
