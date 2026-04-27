@@ -12,7 +12,7 @@ const app = express();
 // 🔐 MIDDLEWARE
 // ===============================
 app.use(cors({
-  origin: true,
+  origin: "http://127.0.0.1:5500", // 👈 tu frontend
   credentials: true
 }));
 
