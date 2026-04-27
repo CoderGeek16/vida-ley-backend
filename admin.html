@@ -28,17 +28,20 @@ body{
 }
 
 .login input{
-  padding:10px;
-  width:200px;
-  margin-bottom:10px;
+  padding:12px;
+  width:220px;
+  margin-bottom:15px;
+  border-radius:6px;
+  border:1px solid #ccc;
 }
 
 .login button{
-  padding:10px 20px;
+  padding:10px 25px;
   background:#006d77;
   color:white;
   border:none;
   border-radius:6px;
+  cursor:pointer;
 }
 
 /* PANEL */
@@ -55,6 +58,18 @@ body{
   padding:20px;
 }
 
+.sidebar button{
+  display:block;
+  width:100%;
+  margin-top:10px;
+  padding:10px;
+  border:none;
+  background:#126a78;
+  color:white;
+  cursor:pointer;
+  border-radius:6px;
+}
+
 .main{
   margin-left:260px;
   padding:30px;
@@ -65,6 +80,20 @@ body{
   padding:20px;
   border-radius:10px;
   margin:10px;
+  display:inline-block;
+  min-width:200px;
+}
+
+table{
+  width:100%;
+  background:white;
+  border-radius:10px;
+  padding:10px;
+}
+
+td{
+  padding:10px;
+  border-bottom:1px solid #eee;
 }
 </style>
 </head>
@@ -105,44 +134,55 @@ body{
 </div>
 
 <script>
-const API = "http://localhost:3000";
+
+// 🔥 IMPORTANTE → TU BACKEND REAL
+const API = "https://vida-ley-backend.onrender.com";
 
 // =====================
 // LOGIN
 // =====================
 async function login(){
+  try{
+    const password = document.getElementById("pass").value;
 
-  const password = document.getElementById("pass").value;
+    const r = await fetch(API + "/auth/login", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ password })
+    });
 
-  const r = await fetch(API + "/auth/login", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ password })
-  });
+    const res = await r.json();
 
-  const res = await r.json();
+    if(res.ok){
+      document.getElementById("login").style.display = "none";
+      document.getElementById("panel").style.display = "block";
+      dashboard();
+    }else{
+      alert("Clave incorrecta");
+    }
 
-  if(res.ok){
-    document.getElementById("login").style.display = "none";
-    document.getElementById("panel").style.display = "block";
-    dashboard();
-  }else{
-    alert("Clave incorrecta");
+  }catch(e){
+    alert("Error conectando con el servidor");
+    console.error(e);
   }
 }
 
 // =====================
-// DASHBOARD REAL
+// DASHBOARD
 // =====================
 async function dashboard(){
 
-  const col = await fetch(API + "/admin/colaboradores").then(r=>r.json());
-  const ben = await fetch(API + "/admin/total-beneficiarios").then(r=>r.json());
+  try{
+    const col = await fetch(API + "/admin/colaboradores").then(r=>r.json());
+    const ben = await fetch(API + "/admin/total-beneficiarios").then(r=>r.json());
 
-  document.getElementById("cards").innerHTML = `
-    <div class="card">Colaboradores: ${col.data.length}</div>
-    <div class="card">Beneficiarios: ${ben.total}</div>
-  `;
+    document.getElementById("cards").innerHTML = `
+      <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
+      <div class="card">👪 Beneficiarios: ${ben.total || 0}</div>
+    `;
+  }catch(e){
+    console.error(e);
+  }
 }
 
 // =====================
@@ -179,7 +219,7 @@ async function ver(id){
   let html = "<h3>Historial</h3>";
 
   res.beneficiarios.forEach(b => {
-    html += `<div>${b.nombres}</div>`;
+    html += `<div>• ${b.nombres}</div>`;
   });
 
   document.getElementById("detalle").innerHTML = html;
@@ -203,6 +243,7 @@ async function buscar(e){
 
   ver(res.data.id);
 }
+
 </script>
 
 </body>
