@@ -11,8 +11,22 @@ const app = express();
 // ===============================
 // 🔐 MIDDLEWARE
 // ===============================
+const allowedOrigins = [
+  "http://127.0.0.1:5500",
+  "http://localhost:5500",
+  "https://lucent-unicorn-1b3310.netlify.app"
+];
+
 app.use(cors({
-  origin: "http://127.0.0.1:5500", // 👈 tu frontend
+  origin: function(origin, callback){
+    if(!origin) return callback(null, true);
+
+    if(allowedOrigins.includes(origin)){
+      callback(null, true);
+    } else {
+      callback(new Error("CORS bloqueado"));
+    }
+  },
   credentials: true
 }));
 
