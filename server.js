@@ -35,10 +35,10 @@ app.post("/auth/login", (req, res) => {
 
   if (password === process.env.APP_ACCESS_PASSWORD) {
     res.cookie("admin", "true", {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: true // en Render funciona con https
-    });
+    httpOnly: true,
+    sameSite: "none", // 🔥 CAMBIO CLAVE
+    secure: true
+   });
 
     return res.json({ ok: true });
   }
