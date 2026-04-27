@@ -117,6 +117,7 @@ td{
     <h2>Vida Ley</h2>
     <button onclick="dashboard()">Dashboard</button>
     <button onclick="listar()">Colaboradores</button>
+    <button onclick="logout()">Salir</button>
   </div>
 
   <div class="main">
@@ -135,7 +136,7 @@ td{
 
 <script>
 
-// 🔥 IMPORTANTE → TU BACKEND REAL
+// 🔥 TU BACKEND EN RENDER
 const API = "https://vida-ley-backend.onrender.com";
 
 // =====================
@@ -148,6 +149,7 @@ async function login(){
     const r = await fetch(API + "/auth/login", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
+      credentials: "include",
       body: JSON.stringify({ password })
     });
 
@@ -162,19 +164,35 @@ async function login(){
     }
 
   }catch(e){
-    alert("Error conectando con el servidor");
+    alert("Error de conexión");
     console.error(e);
   }
+}
+
+// =====================
+// LOGOUT
+// =====================
+async function logout(){
+  await fetch(API + "/auth/logout", {
+    method:"POST",
+    credentials: "include"
+  });
+
+  location.reload();
 }
 
 // =====================
 // DASHBOARD
 // =====================
 async function dashboard(){
-
   try{
-    const col = await fetch(API + "/admin/colaboradores").then(r=>r.json());
-    const ben = await fetch(API + "/admin/total-beneficiarios").then(r=>r.json());
+    const col = await fetch(API + "/admin/colaboradores", {
+      credentials: "include"
+    }).then(r=>r.json());
+
+    const ben = await fetch(API + "/admin/total-beneficiarios", {
+      credentials: "include"
+    }).then(r=>r.json());
 
     document.getElementById("cards").innerHTML = `
       <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
@@ -182,6 +200,7 @@ async function dashboard(){
     `;
   }catch(e){
     console.error(e);
+    alert("Error cargando dashboard");
   }
 }
 
@@ -189,8 +208,9 @@ async function dashboard(){
 // LISTAR
 // =====================
 async function listar(){
-
-  const res = await fetch(API + "/admin/colaboradores").then(r=>r.json());
+  const res = await fetch(API + "/admin/colaboradores", {
+    credentials: "include"
+  }).then(r=>r.json());
 
   let html = "<table>";
 
@@ -213,8 +233,9 @@ async function listar(){
 // HISTORIAL
 // =====================
 async function ver(id){
-
-  const res = await fetch(API + "/admin/historial/" + id).then(r=>r.json());
+  const res = await fetch(API + "/admin/historial/" + id, {
+    credentials: "include"
+  }).then(r=>r.json());
 
   let html = "<h3>Historial</h3>";
 
@@ -229,7 +250,6 @@ async function ver(id){
 // BUSCAR
 // =====================
 async function buscar(e){
-
   if(e.key !== "Enter") return;
 
   const dni = e.target.value;

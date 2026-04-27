@@ -2,13 +2,22 @@ require('dotenv').config();
 
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const { createClient } = require('@supabase/supabase-js');
 const PDFDocument = require("pdfkit");
 
 const app = express();
 
-app.use(cors());
+// ===============================
+// 🔐 MIDDLEWARE
+// ===============================
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
 app.use(express.json());
+app.use(cookieParser());
 
 // ===============================
 // 🔌 SUPABASE
@@ -19,25 +28,18 @@ const supabase = createClient(
 );
 
 // ===============================
-// 🔐 ADMIN
-// ===============================
-let isAdmin = false;
-
-function checkAdmin(req, res, next){
-  if(!isAdmin){
-    return res.status(403).json({ ok:false, msg:"No autorizado" });
-  }
-  next();
-}
-
-// ===============================
-// 🔐 AUTH
+// 🔐 AUTH (LOGIN REAL)
 // ===============================
 app.post("/auth/login", (req, res) => {
   const { password } = req.body;
 
   if (password === process.env.APP_ACCESS_PASSWORD) {
-    isAdmin = true;
+    res.cookie("admin", "true", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true // en Render funciona con https
+    });
+
     return res.json({ ok: true });
   }
 
@@ -45,13 +47,25 @@ app.post("/auth/login", (req, res) => {
 });
 
 app.post("/auth/logout", (req, res) => {
-  isAdmin = false;
+  res.clearCookie("admin");
   res.json({ ok: true });
 });
 
 app.get("/auth/status", (req, res) => {
-  res.json({ authenticated: isAdmin });
+  res.json({
+    authenticated: req.cookies.admin === "true"
+  });
 });
+
+// ===============================
+// 🔐 PROTECCIÓN ADMIN
+// ===============================
+function checkAdmin(req, res, next){
+  if(req.cookies.admin !== "true"){
+    return res.status(403).json({ ok:false, msg:"No autorizado" });
+  }
+  next();
+}
 
 // ===============================
 // 🟢 TEST
@@ -173,8 +187,7 @@ app.post("/generar-pdf", async (req, res) => {
       }
     });
 
-    // ===== CONTENIDO PDF =====
-
+    // CONTENIDO PDF
     doc.fontSize(16).text("DECLARACIÓN JURADA VIDA LEY", { align:"center" });
     doc.moveDown();
 
@@ -203,22 +216,12 @@ app.post("/generar-pdf", async (req, res) => {
 });
 
 // ===============================
-// 🔥 ADMIN
+// 🔥 ADMIN (PROTEGIDO)
 // ===============================
-
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase
     .from("colaboradores")
     .select("*");
-
-  res.json({ ok:true, data });
-});
-
-app.get("/admin/beneficiarios/:id", checkAdmin, async (req, res) => {
-  const { data } = await supabase
-    .from("beneficiarios")
-    .select("*")
-    .eq("id_colaborador", req.params.id);
 
   res.json({ ok:true, data });
 });
