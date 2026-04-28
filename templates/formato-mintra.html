@@ -1,88 +1,248 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<style>
+  <meta charset="UTF-8">
+  <title>Formato MINTRA Vida Ley</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 12mm 10mm 12mm;
+    }
 
-body{
-  font-family: Arial;
-  font-size: 12px;
-  padding: 40px;
-}
+    * {
+      box-sizing: border-box;
+    }
 
-h3{
-  text-align:center;
-  margin:0;
-}
+    body {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      color: #000;
+      font-size: 11px;
+      line-height: 1.18;
+    }
 
-.sub{
-  text-align:center;
-  font-size:11px;
-}
+    .page {
+      width: 100%;
+    }
 
-p{
-  text-align:justify;
-  font-size:11px;
-}
+    .center {
+      text-align: center;
+    }
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
+    .right {
+      text-align: right;
+    }
 
-td, th{
-  border:1px solid black;
-  padding:6px;
-  font-size:11px;
-}
+    .title {
+      font-weight: 700;
+      font-size: 11px;
+      margin: 0;
+    }
 
-.firma{
-  margin-top:60px;
-  text-align:center;
-}
+    .title.main {
+      margin-top: 16px;
+      font-size: 11px;
+    }
 
-</style>
+    .title.sub {
+      margin-top: 2px;
+      font-size: 10px;
+    }
+
+    .legal-text {
+      margin-top: 14px;
+      font-size: 9px;
+      text-align: justify;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .worker-box {
+      margin-top: 12px;
+    }
+
+    .worker-box td {
+      border: 1px solid #000;
+      padding: 6px 7px;
+      font-size: 9px;
+      vertical-align: middle;
+      height: 30px;
+    }
+
+    .section-banner {
+      margin-top: 14px;
+      background: #d9d9d9;
+      border: 1px solid #bcbcbc;
+      padding: 4px 6px 3px;
+      font-weight: 700;
+      font-size: 10px;
+      line-height: 1.05;
+    }
+
+    .benef-table {
+      margin-top: 14px;
+    }
+
+    .benef-table thead {
+      display: table-header-group;
+    }
+
+    .benef-table tr {
+      page-break-inside: avoid;
+    }
+
+    .benef-table th,
+    .benef-table td {
+      border: 1px solid #000;
+      padding: 3px 4px;
+      font-size: 8px;
+      vertical-align: middle;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .benef-table th {
+      font-weight: 700;
+      text-align: center;
+      height: 36px;
+      line-height: 1.05;
+    }
+
+    .benef-table td {
+      min-height: 24px;
+    }
+
+    .benef-table td.center {
+      text-align: center;
+    }
+
+    .notes {
+      margin-top: 4px;
+      font-size: 8px;
+      text-align: right;
+      line-height: 1.15;
+    }
+
+    .signature-box {
+      margin-top: 14px;
+      border: 1px solid #000;
+      min-height: 122px;
+      position: relative;
+    }
+
+    .signature-line {
+      width: 280px;
+      margin: 46px auto 0;
+      border-top: 1px solid #000;
+    }
+
+    .signature-title {
+      margin-top: 6px;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .signature-legal {
+      margin-top: 1px;
+      text-align: center;
+      font-size: 8px;
+      line-height: 1.2;
+    }
+
+    .signature-date {
+      position: absolute;
+      right: 16px;
+      bottom: 14px;
+      font-size: 10px;
+      text-align: right;
+      width: 270px;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="page">
+    <p class="title center">ANEXO</p>
 
-<h3>ANEXO</h3>
-<h3>FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS</h3>
-<h3>DEL SEGURO DE VIDA</h3>
+    <p class="title main center">FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS</p>
+    <p class="title center">DEL SEGURO DE VIDA</p>
+    <p class="title sub center">(Decreto Legislativo N° 688 y sus normas modificatorias, complementarias y reglamentarias)</p>
 
-<p class="sub">(Decreto Legislativo N° 688)</p>
+    <div class="legal-text">
+      El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688,
+      Ley de Consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre
+      los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de
+      fallecimiento a consecuencia de un accidente.
+    </div>
 
-<p>
-El/la suscrito(a) declara como beneficiarios del seguro de vida:
-</p>
+    <table class="worker-box">
+      <tr>
+        <td style="width:58%;">Nombres y apellidos del trabajador(a) asegurado(a): {{NOMBRE}}</td>
+        <td style="width:42%;">DNI: {{DNI}}</td>
+      </tr>
+      <tr>
+        <td colspan="2">Nombre y apellidos o razón social del empleador: {{EMPLEADOR}}</td>
+      </tr>
+    </table>
 
-<table>
-<tr>
-<td><b>Nombres:</b> {{NOMBRE}}</td>
-<td><b>DNI:</b> {{DNI}}</td>
-</tr>
-</table>
+    <div class="section-banner">
+      <div>Primeros Beneficiarios:</div>
+      <div>Cónyuge o conviviente y descendientes (*) (**)</div>
+    </div>
 
-<h4>Beneficiarios</h4>
+    <table class="benef-table">
+      <thead>
+        <tr>
+          <th style="width:22%;">Nombre y<br>apellidos</th>
+          <th style="width:14%;">DNI</th>
+          <th style="width:20%;">Parentesco</th>
+          <th style="width:20%;">Fecha de<br>nacimiento</th>
+          <th style="width:24%;">Domicilio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{FILAS_PRIMEROS}}
+      </tbody>
+    </table>
 
-<table>
-<tr>
-<th>Nombre</th>
-<th>DNI</th>
-<th>Parentesco</th>
-<th>Fecha</th>
-<th>Domicilio</th>
-</tr>
+    <div class="notes">
+      <div>(*) A falta de cónyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo mínimo de dos (2) años continuos, conforme al artículo 326 del Código Civil.</div>
+      <div>(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.</div>
+    </div>
 
-{{FILAS}}
+    <div class="section-banner">
+      <div>Solo a falta de los Primeros Beneficiarios:</div>
+      <div>Ascendientes y hermanos menores de dieciocho (18) años (***)</div>
+    </div>
 
-</table>
+    <table class="benef-table">
+      <thead>
+        <tr>
+          <th style="width:22%;">Nombre y<br>apellidos</th>
+          <th style="width:14%;">DNI</th>
+          <th style="width:20%;">Parentesco</th>
+          <th style="width:20%;">Fecha de<br>nacimiento</th>
+          <th style="width:24%;">Domicilio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{FILAS_SEGUNDOS}}
+      </tbody>
+    </table>
 
-<div class="firma">
-_____________________________<br>
-Firma del trabajador
-</div>
+    <div class="notes">
+      <div>(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.</div>
+    </div>
 
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div class="signature-title">Firma del trabajador(a) asegurado(a)</div>
+      <div class="signature-legal">(Legalizada notarialmente, o por<br>Juez de Paz a falta de notario)</div>
+      <div class="signature-date">{{FECHA_LIMA}}</div>
+    </div>
+  </div>
 </body>
 </html>

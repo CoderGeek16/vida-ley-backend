@@ -4,12 +4,9 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { createClient } = require("@supabase/supabase-js");
-
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
-process.env.PUPPETEER_EXECUTABLE_PATH = undefined;
-
 
 const app = express();
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "pdfs";
@@ -25,10 +22,30 @@ const PARENTESCO_LABELS = {
   6: "Hermano(a)"
 };
 
-const GENERO_LABELS = {
-  1: "Masculino",
-  2: "Femenino"
-};
+const allowedOrigins = [
+  "http://127.0.0.1:5500",
+  "http://localhost:5500",
+  "https://registrovidaley.netlify.app"
+];
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("No permitido por CORS"));
+    }
+  },
+  credentials: true
+}));
+
+app.use(express.json());
+app.use(cookieParser());
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 function cleanText(value) {
   return String(value || "").trim();
@@ -65,221 +82,106 @@ function formatLongDate(value = new Date()) {
     return "";
   }
 
-  return parsed.toLocaleDateString("es-PE", {
+  return `Lima, ${parsed.toLocaleDateString("es-PE", {
     day: "numeric",
     month: "long",
     year: "numeric"
-  });
+  })}`;
 }
 
 function getParentescoLabel(id) {
   return PARENTESCO_LABELS[id] || cleanText(id) || "-";
 }
 
-function getGeneroLabel(id, fallback = "") {
-  return GENERO_LABELS[id] || cleanText(fallback) || "-";
+function getEmployerName(col) {
+  return (
+    cleanText(col?.empleador) ||
+    cleanText(col?.razon_social_empleador) ||
+    cleanText(col?.employer_name) ||
+    cleanText(process.env.EMPLOYER_NAME)
+  );
 }
 
-function drawTag(doc, x, y, width, height, text, palette) {
-  doc
-    .save()
-    .roundedRect(x, y, width, height, 9)
-    .fill(palette.accent);
-
-  doc
-    .fillColor("#ffffff")
-    .font("Helvetica-Bold")
-    .fontSize(11)
-    .text(text, x, y + 8, {
-      width,
-      align: "center"
-    })
-    .restore();
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-function drawSectionTitle(doc, text, x, y, width, palette) {
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .fillColor(palette.primary)
-    .text(text, x, y, { width });
+function resolveTemplatePath() {
+  const candidates = [
+    path.join(__dirname, "templates", "formato-mintra.html"),
+    path.join(__dirname, "template", "formato-mintra.html"),
+    path.join(__dirname, "formato-mintra.html")
+  ];
 
-  doc
-    .moveTo(x, y + 18)
-    .lineTo(x + width, y + 18)
-    .lineWidth(1)
-    .strokeColor(palette.lineStrong)
-    .stroke();
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 }
 
-function drawInfoCard(doc, {
-  x,
-  y,
-  width,
-  title,
-  fields,
-  palette
-}) {
-  const padding = 14;
+function buildBeneficiaryRows(beneficiarios, tipo, minRows = 4) {
+  const rows = (beneficiarios || [])
+    .filter((item) => cleanText(item.tipo).toUpperCase() === tipo)
+    .map((item) => ({
+      nombre: buildFullName(item),
+      dni: cleanText(item.dni),
+      parentesco: getParentescoLabel(item.id_parentesco),
+      fecha: formatShortDate(item.fecha_nacimiento),
+      domicilio: cleanText(item.domicilio)
+    }));
 
-  doc
-    .save()
-    .roundedRect(x, y, width, 102, 16)
-    .fillAndStroke("#ffffff", palette.line);
-
-  doc
-    .roundedRect(x, y, width, 28, 16)
-    .fill(palette.soft);
-
-  doc
-    .fillColor(palette.primary)
-    .font("Helvetica-Bold")
-    .fontSize(10.5)
-    .text(title, x + padding, y + 9, {
-      width: width - (padding * 2)
+  while (rows.length < minRows) {
+    rows.push({
+      nombre: "&nbsp;",
+      dni: "&nbsp;",
+      parentesco: "&nbsp;",
+      fecha: "&nbsp;",
+      domicilio: "&nbsp;"
     });
+  }
 
-  let currentY = y + 38;
-
-  fields.forEach((field) => {
-    doc
-      .fillColor(palette.muted)
-      .font("Helvetica-Bold")
-      .fontSize(7.5)
-      .text(field.label.toUpperCase(), x + padding, currentY, {
-        width: width - (padding * 2)
-      });
-
-    currentY += 10;
-
-    doc
-      .fillColor(palette.ink)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(field.value || "-", x + padding, currentY, {
-        width: width - (padding * 2)
-      });
-
-    currentY += 18;
-  });
-
-  doc.restore();
+  return rows;
 }
 
-function drawCallout(doc, {
-  x,
-  y,
-  width,
-  text,
-  palette
-}) {
-  doc.font("Helvetica").fontSize(8.3);
-
-  const height = Math.max(28, doc.heightOfString(text, {
-    width: width - 26,
-    align: "left"
-  }) + 14);
-
-  doc
-    .save()
-    .roundedRect(x, y, width, height, 10)
-    .fillAndStroke("#fbfcfd", palette.line);
-
-  doc
-    .roundedRect(x, y, 6, height, 10)
-    .fill(palette.accent);
-
-  doc
-    .fillColor(palette.muted)
-    .font("Helvetica")
-    .fontSize(8.3)
-    .text(text, x + 14, y + 7, {
-      width: width - 24,
-      lineGap: 1.5
-    })
-    .restore();
-
-  return height;
+function renderRowsHtml(rows) {
+  return rows.map((row) => `
+    <tr>
+      <td>${row.nombre === "&nbsp;" ? row.nombre : escapeHtml(row.nombre)}</td>
+      <td class="center">${row.dni === "&nbsp;" ? row.dni : escapeHtml(row.dni)}</td>
+      <td class="center">${row.parentesco === "&nbsp;" ? row.parentesco : escapeHtml(row.parentesco)}</td>
+      <td class="center">${row.fecha === "&nbsp;" ? row.fecha : escapeHtml(row.fecha)}</td>
+      <td>${row.domicilio === "&nbsp;" ? row.domicilio : escapeHtml(row.domicilio)}</td>
+    </tr>
+  `).join("");
 }
 
-function getTableRowHeight(doc, row, columns, cellPadding) {
-  const minHeight = 26;
+function replaceTokens(html, replacements) {
+  let output = html;
 
-  const tallest = columns.reduce((maxHeight, column) => {
-    const textHeight = doc.heightOfString(row[column.key] || "-", {
-      width: column.width - (cellPadding * 2),
-      align: column.align || "left"
-    });
+  for (const [token, value] of Object.entries(replacements)) {
+    output = output.replace(new RegExp(`{{${token}}}`, "g"), value);
+  }
 
-    return Math.max(maxHeight, textHeight + (cellPadding * 2));
-  }, minHeight);
-
-  return Math.max(minHeight, tallest);
+  return output;
 }
 
-function drawTableRow(doc, {
-  x,
-  y,
-  row,
-  columns,
-  height,
-  palette,
-  isHeader = false,
-  zebra = false
-}) {
-  const cellPadding = 6;
-  let cursorX = x;
+async function launchBrowser() {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
 
-  columns.forEach((column) => {
-    const fillColor = isHeader
-      ? palette.primary
-      : zebra
-        ? palette.zebra
-        : "#ffffff";
-
-    doc
-      .save()
-      .rect(cursorX, y, column.width, height)
-      .fillAndStroke(fillColor, palette.line);
-
-    doc
-      .fillColor(isHeader ? "#ffffff" : palette.ink)
-      .font(isHeader ? "Helvetica-Bold" : "Helvetica")
-      .fontSize(isHeader ? 8.7 : 8.6)
-      .text(row[column.key] || "-", cursorX + cellPadding, y + cellPadding, {
-        width: column.width - (cellPadding * 2),
-        align: column.align || "left"
-      })
-      .restore();
-
-    cursorX += column.width;
+  return puppeteer.launch({
+    executablePath,
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--font-render-hinting=none"
+    ]
   });
 }
-
-const allowedOrigins = [
-  "http://127.0.0.1:5500",
-  "http://localhost:5500",
-  "https://registrovidaley.netlify.app"
-];
-
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("No permitido por CORS"));
-    }
-  },
-  credentials: true
-}));
-
-app.use(express.json());
-app.use(cookieParser());
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
 
 app.post("/auth/login", (req, res) => {
   const { password } = req.body;
@@ -298,7 +200,7 @@ app.post("/auth/login", (req, res) => {
     return res.json({ ok: true });
   }
 
-  res.json({ ok: false });
+  res.json({ ok: false, msg: "Clave incorrecta" });
 });
 
 app.post("/auth/logout", (req, res) => {
@@ -325,26 +227,31 @@ function checkAdmin(req, res, next) {
   next();
 }
 
-
 app.get("/", (req, res) => {
-  res.send("API Vida Ley funcionando 🚀");
+  res.json({
+    ok: true,
+    service: "registro-vida-ley",
+    storageBucket: STORAGE_BUCKET
+  });
 });
-
 
 app.get("/colaborador/:dni", async (req, res) => {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("colaboradores")
       .select("*")
       .eq("dni", req.params.dni)
       .single();
 
-    if (!data) return res.json({ ok: false });
+    if (error || !data) {
+      if (error) console.error("Error buscando colaborador:", error);
+      return res.json({ ok: false });
+    }
 
     res.json({ ok: true, data });
   } catch (err) {
     console.error(err);
-    res.json({ ok: false });
+    res.json({ ok: false, msg: "Error consultando colaborador" });
   }
 });
 
@@ -370,27 +277,26 @@ app.post("/guardar-beneficiario", async (req, res) => {
 
     if (error) {
       console.error(error);
-      return res.json({ ok: false });
+      return res.json({ ok: false, msg: error.message });
     }
 
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
-    res.json({ ok: false });
+    res.json({ ok: false, msg: "Error guardando beneficiario" });
   }
 });
 
-  app.post("/generar-pdf", async (req, res) => {
+app.post("/generar-pdf", async (req, res) => {
+  let browser;
+
   try {
     const { id_colaborador, session_id } = req.body;
 
     if (!id_colaborador || !session_id) {
-      return res.json({ ok: false, msg: "Datos incompletos" });
+      return res.status(400).json({ ok: false, msg: "Datos incompletos" });
     }
 
-    // ===============================
-    // 🔎 COLABORADOR
-    // ===============================
     const { data: col, error: errCol } = await supabase
       .from("colaboradores")
       .select("*")
@@ -398,85 +304,69 @@ app.post("/guardar-beneficiario", async (req, res) => {
       .single();
 
     if (errCol || !col) {
-      return res.json({ ok: false, msg: "Colaborador no existe" });
+      console.error("Error obteniendo colaborador:", errCol);
+      return res.status(404).json({ ok: false, msg: "Colaborador no existe" });
     }
 
-    // ===============================
-    // 👨‍👩‍👧 BENEFICIARIOS
-    // ===============================
     const { data: beneficiarios, error: errBen } = await supabase
       .from("beneficiarios")
       .select("*")
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    if (errBen || !beneficiarios || beneficiarios.length === 0) {
-      return res.json({ ok: false, msg: "Sin beneficiarios" });
+    if (errBen) {
+      console.error("Error obteniendo beneficiarios:", errBen);
+      return res.status(500).json({ ok: false, msg: "No se pudieron obtener los beneficiarios" });
     }
 
-    // ===============================
-    // 📄 TEMPLATE HTML
-    // ===============================
-    const templatePath = path.join(__dirname, "templates", "formato-mintra.html");
+    if (!beneficiarios || beneficiarios.length === 0) {
+      return res.status(400).json({ ok: false, msg: "Sin beneficiarios" });
+    }
 
-    if (!fs.existsSync(templatePath)) {
-      console.error("❌ TEMPLATE NO EXISTE:", templatePath);
-      return res.json({ ok: false, msg: "No se encuentra plantilla PDF" });
+    const templatePath = resolveTemplatePath();
+
+    if (!templatePath) {
+      return res.status(500).json({ ok: false, msg: "No se encuentra plantilla PDF" });
     }
 
     let html = fs.readFileSync(templatePath, "utf8");
 
-    // ===============================
-    // 🔄 REEMPLAZOS
-    // ===============================
-    html = html.replace("{{NOMBRE}}", buildFullName(col));
-    html = html.replace("{{DNI}}", col.dni);
-
-    const filas = beneficiarios.map(b => `
-      <tr>
-        <td>${buildFullName(b)}</td>
-        <td>${b.dni}</td>
-        <td>${getParentescoLabel(b.id_parentesco)}</td>
-        <td>${formatShortDate(b.fecha_nacimiento)}</td>
-        <td>${b.domicilio || ""}</td>
-      </tr>
-    `).join("");
-
-    html = html.replace("{{FILAS}}", filas);
-
-    // ===============================
-    // 🚀 PUPPETEER FIX RENDER
-    // ===============================
-    const browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu"
-      ]
+    html = replaceTokens(html, {
+      NOMBRE: escapeHtml(buildFullName(col)),
+      DNI: escapeHtml(cleanText(col.dni)),
+      EMPLEADOR: escapeHtml(getEmployerName(col)),
+      FECHA_LIMA: escapeHtml(formatLongDate(new Date())),
+      FILAS_PRIMEROS: renderRowsHtml(buildBeneficiaryRows(beneficiarios, "PRIMERO", 4)),
+      FILAS_SEGUNDOS: renderRowsHtml(buildBeneficiaryRows(beneficiarios, "SEGUNDO", 4)),
+      FILAS: renderRowsHtml(buildBeneficiaryRows(beneficiarios, "PRIMERO", 4))
     });
+
+    browser = await launchBrowser();
 
     const page = await browser.newPage();
-
+    await page.setViewport({ width: 1240, height: 1754, deviceScaleFactor: 1 });
     await page.setContent(html, {
-      waitUntil: "networkidle0"
+      waitUntil: ["domcontentloaded", "load", "networkidle0"]
     });
+    await page.emulateMediaType("screen");
 
     const pdfBuffer = await page.pdf({
       format: "A4",
-      printBackground: true
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "0mm",
+        right: "0mm",
+        bottom: "0mm",
+        left: "0mm"
+      }
     });
 
-    await browser.close();
-
-    // ===============================
-    // ☁️ SUBIR A SUPABASE
-    // ===============================
-    const fileName = `vida_${Date.now()}.pdf`;
+    const safeDni = cleanText(col.dni).replace(/[^\dA-Za-z_-]/g, "") || "sin-dni";
+    const fileName = `vida-ley/${safeDni}_${Date.now()}.pdf`;
 
     const { error: uploadError } = await supabase.storage
-      .from("pdfs")
+      .from(STORAGE_BUCKET)
       .upload(fileName, pdfBuffer, {
         contentType: "application/pdf",
         upsert: true
@@ -484,31 +374,46 @@ app.post("/guardar-beneficiario", async (req, res) => {
 
     if (uploadError) {
       console.error("Error subiendo PDF:", uploadError);
-      return res.json({ ok: false, msg: "Error subiendo PDF" });
+      return res.status(500).json({
+        ok: false,
+        msg: `Error subiendo PDF a Supabase: ${uploadError.message}`
+      });
     }
 
-    const { data } = await supabase.storage
-      .from("pdfs")
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from(STORAGE_BUCKET)
       .createSignedUrl(fileName, 300);
 
-    if (!data?.signedUrl) {
-      return res.json({ ok: false, msg: "No se pudo generar URL" });
+    if (signedError || !signedData?.signedUrl) {
+      console.error("Error creando signed URL:", signedError);
+      return res.status(500).json({
+        ok: false,
+        msg: `No se pudo generar URL del PDF: ${signedError?.message || "error desconocido"}`
+      });
     }
 
-    // ===============================
-    // ✅ RESPUESTA FINAL
-    // ===============================
-    res.json({
-      ok: true,
-      url: data.signedUrl
-    });
+    await supabase
+      .from("colaboradores")
+      .update({ pdf_nombre: fileName })
+      .eq("id", id_colaborador);
 
+    return res.json({
+      ok: true,
+      url: signedData.signedUrl,
+      fileName
+    });
   } catch (err) {
-    console.error("🔥 ERROR REAL PDF:", err);
-    res.json({ ok: false, msg: err.message });
+    console.error("Error real generando PDF:", err);
+    return res.status(500).json({
+      ok: false,
+      msg: err.message || "Error interno generando PDF"
+    });
+  } finally {
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
   }
 });
-
 
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase
