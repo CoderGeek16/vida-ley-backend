@@ -434,16 +434,17 @@ app.post("/generar-pdf", async (req, res) => {
     // ===============================
     // 🚀 GENERAR PDF CON PUPPETEER
     // ===============================
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: puppeteer.executablePath(),
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu"
-      ]
-    });
+      const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-zygote",
+      "--single-process"
+    ]
+  });
 
     const page = await browser.newPage();
 
@@ -488,8 +489,8 @@ app.post("/generar-pdf", async (req, res) => {
     res.send(pdfBuffer);
 
   } catch (err) {
-    console.error(err);
-    res.json({ ok: false, msg: "Error generando PDF" });
+  console.error("ERROR REAL PDF:", err);
+  res.json({ ok: false, msg: err.message });
   }
 });
 
