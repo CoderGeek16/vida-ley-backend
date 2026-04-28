@@ -523,10 +523,7 @@ y += 25;
 
 // TEXTO LEGAL
 doc.fontSize(9).text(
-  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688,
-  Ley de consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre
-  los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de
-  fallecimiento a consecuencia de un accidente.",
+  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688....",
   margin, y, { width: usableWidth, align: "justify" }
 );
 
@@ -622,6 +619,7 @@ y += 40;
 
 doc.text("______________________________", margin + 150, y);
 y += 15;
+
 doc.text("Firma del trabajador", margin + 160, y);
 
     doc.moveDown(3);
@@ -629,13 +627,8 @@ doc.text("Firma del trabajador", margin + 160, y);
     doc.text("__________________________");
     doc.text("Firma");
 
-    doc.end();
-
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false, msg: "Error generando PDF" });
-  }
-});
+  doc.end();
+  
 
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase
