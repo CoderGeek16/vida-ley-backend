@@ -8,6 +8,8 @@ const { createClient } = require("@supabase/supabase-js");
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
+process.env.PUPPETEER_EXECUTABLE_PATH = undefined;
+
 
 const app = express();
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "pdfs";
