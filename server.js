@@ -412,7 +412,12 @@ app.post("/generar-pdf", async (req, res) => {
     // ===============================
     // 📄 CARGAR TEMPLATE HTML
     // ===============================
-    const templatePath = path.join(__dirname, "templates", "formato-mintra.html");
+    const templatePath = path.resolve("templates/formato-mintra.html");
+    if (!fs.existsSync(templatePath)) {
+      console.error("NO EXISTE TEMPLATE:", templatePath);
+      return res.json({ ok: false, msg: "No se encuentra plantilla PDF" });
+    }
+
     let html = fs.readFileSync(templatePath, "utf8");
 
     // ===============================
