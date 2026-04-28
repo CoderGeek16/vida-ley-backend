@@ -1209,7 +1209,9 @@
     colaboradorData = d.data;
 
     // 🔥 NUEVA SESIÓN AQUÍ
+    if(!session_id){
     session_id = crypto.randomUUID();
+    }
 
     document.getElementById("v_nombre").innerText =
       d.data.apellido_paterno + " " + d.data.apellido_materno + ", " + d.data.nombres;
@@ -1398,31 +1400,41 @@ async function generarPDF(){
   try{
 
     const r = await apiFetch("/generar-pdf", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      id_colaborador: colaboradorData.id,
-      session_id: session_id
-    })
-  });
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id_colaborador: colaboradorData.id,
+        session_id: session_id
+      })
+    });
 
     const res = await leerJSON(r);
 
-    if(!r.ok || !res.ok){
-      pdfFeedback.innerText = res.msg || "No se pudo generar el PDF.";
-      alert(res.msg || "Error generando PDF");
+    // 🔥 VER RESPUESTA REAL EN CONSOLA
+    console.log("RESPUESTA BACKEND:", res);
+
+    if(!res.ok){
+      pdfFeedback.innerText = "❌ " + (res.msg || "Error desconocido");
+      alert("ERROR REAL:\n" + (res.msg || "Error desconocido"));
       return;
     }
 
-  // 👉 abrir PDF guardado
-    pdfFeedback.innerText = "PDF generado y guardado correctamente.";
-    window.open(res.url, "_blank");
+    // ✅ TODO OK
+    pdfFeedback.innerText = "✅ PDF generado correctamente";
+
+    if(res.url){
+      window.open(res.url, "_blank");
+    }else{
+      alert("PDF generado pero sin URL (revisar backend)");
+    }
+
   }catch(error){
-    pdfFeedback.innerText = "No se pudo conectar con el servidor.";
-    alert("No se pudo conectar con el servidor para generar el PDF.");
-    console.error(error);
+    console.error("ERROR COMPLETO:", error);
+
+    pdfFeedback.innerText = "❌ Error de conexión";
+    alert("Error conectando con el servidor");
   }finally{
     setPdfLoading(false);
   }
