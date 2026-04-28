@@ -194,78 +194,111 @@ app.post("/generar-pdf", async (req, res) => {
     });
 
 // ===============================
-// 📄 FORMATO MINTRA REAL
+// 📄 PDF FORMATO PROFESIONAL MINTRA
 // ===============================
 
-    doc.fontSize(12).font("Helvetica-Bold");
-    doc.text("ANEXO", { align: "center" });
+// ENCABEZADO
+doc.font("Helvetica-Bold").fontSize(13);
+doc.text("DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA", {
+  align: "center"
+});
 
-    doc.moveDown(0.5);
+doc.moveDown(0.3);
 
-    doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA", {
-      align: "center"
-    });
+doc.font("Helvetica").fontSize(10);
+doc.text("(Decreto Legislativo N° 688)", { align: "center" });
 
-    doc.moveDown(0.5);
+doc.moveDown(1.5);
 
-    doc.font("Helvetica").fontSize(10);
-    doc.text("(Decreto Legislativo N° 688 y sus normas modificatorias)", {
-      align: "center"
-    });
+// DATOS TRABAJADOR
+doc.font("Helvetica-Bold").fontSize(11);
+doc.text("1. DATOS DEL TRABAJADOR");
 
-    doc.moveDown();
+doc.moveDown(0.5);
 
-    doc.text("El/la suscrito(a), formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida.");
+doc.font("Helvetica").fontSize(10);
+doc.text(`Apellidos y Nombres: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
+doc.text(`DNI: ${col.dni}`);
 
-    doc.moveDown();
+doc.moveDown(1);
 
-    // DATOS TRABAJADOR
-    doc.font("Helvetica-Bold");
-    doc.text("Datos del trabajador:");
+// ===============================
+// 🟦 TABLA BENEFICIARIOS
+// ===============================
+doc.font("Helvetica-Bold");
+doc.text("2. BENEFICIARIOS");
 
-    doc.font("Helvetica");
-    doc.text(`Nombres y apellidos: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
-    doc.text(`DNI: ${col.dni}`);
+doc.moveDown(0.5);
 
-    doc.moveDown();
+// TABLA HEADER
+const startX = 40;
+let y = doc.y;
 
-    // PRIMEROS
-    doc.font("Helvetica-Bold");
-    doc.text("Primeros Beneficiarios:");
+doc.rect(startX, y, 520, 20).stroke();
 
-    doc.moveDown(0.5);
+doc.fontSize(9).text("N°", startX + 5, y + 5);
+doc.text("APELLIDOS Y NOMBRES", startX + 30, y + 5);
+doc.text("DNI", startX + 300, y + 5);
+doc.text("TIPO", startX + 380, y + 5);
 
-    (beneficiarios || [])
-      .filter(b => b.tipo === "PRIMERO")
-      .forEach(b => {
-        doc.text(`• ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres} - DNI: ${b.dni}`);
-      });
+y += 20;
 
-    doc.moveDown();
+// FILAS
+let i = 1;
 
-    // SEGUNDOS
-    doc.font("Helvetica-Bold");
-    doc.text("A falta de los anteriores:");
+(beneficiarios || []).forEach(b => {
 
-    doc.moveDown(0.5);
+  doc.rect(startX, y, 520, 20).stroke();
 
-    (beneficiarios || [])
-      .filter(b => b.tipo === "SEGUNDO")
-      .forEach(b => {
-        doc.text(`• ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres} - DNI: ${b.dni}`);
-      });
+  doc.text(i, startX + 5, y + 5);
 
-    // FIRMA
-    doc.moveDown(2);
+  doc.text(
+    `${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`,
+    startX + 30,
+    y + 5,
+    { width: 250 }
+  );
 
-    doc.text("______________________________", 200);
-    doc.text("Firma del trabajador", 210);
+  doc.text(b.dni, startX + 300, y + 5);
 
-    doc.moveDown();
+  doc.text(
+    b.tipo === "PRIMERO" ? "PRIMERO" : "SECUNDARIO",
+    startX + 380,
+    y + 5
+  );
 
-    const fecha = new Date();
-    doc.text(`Fecha: ${fecha.toLocaleDateString()}`, { align: "right" });
-  
+  y += 20;
+  i++;
+});
+
+// ===============================
+// ✍ DECLARACIÓN
+// ===============================
+doc.moveDown(2);
+
+doc.font("Helvetica").fontSize(10);
+doc.text(
+  "Declaro bajo juramento que la información proporcionada es veraz y autorizo su uso para los fines del seguro de vida ley.",
+  {
+    align: "justify"
+  }
+);
+
+// ===============================
+// ✍ FIRMA
+// ===============================
+doc.moveDown(3);
+
+doc.text("______________________________", 200);
+doc.text("Firma del trabajador", 210);
+
+doc.moveDown();
+
+const fecha = new Date();
+doc.text(`Fecha: ${fecha.toLocaleDateString()}`, {
+  align: "right"
+});
+
    doc.end();
 
   } catch (err) {
