@@ -7,6 +7,9 @@ const { createClient } = require("@supabase/supabase-js");
 const PDFDocument = require("pdfkit");
 
 const app = express();
+const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "pdfs";
+const AUTH_ENABLED = Boolean(process.env.APP_ACCESS_PASSWORD);
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 const PARENTESCO_LABELS = {
   1: "Conyuge",
@@ -276,11 +279,15 @@ const supabase = createClient(
 app.post("/auth/login", (req, res) => {
   const { password } = req.body;
 
+  if (!AUTH_ENABLED) {
+    return res.json({ ok: true, authEnabled: false });
+  }
+
   if (password === process.env.APP_ACCESS_PASSWORD) {
     res.cookie("admin", "true", {
       httpOnly: true,
-      sameSite: "none",
-      secure: true
+      sameSite: IS_PRODUCTION ? "none" : "lax",
+      secure: IS_PRODUCTION
     });
 
     return res.json({ ok: true });
@@ -290,12 +297,17 @@ app.post("/auth/login", (req, res) => {
 });
 
 app.post("/auth/logout", (req, res) => {
-  res.clearCookie("admin");
+  res.clearCookie("admin", {
+    httpOnly: true,
+    sameSite: IS_PRODUCTION ? "none" : "lax",
+    secure: IS_PRODUCTION
+  });
   res.json({ ok: true });
 });
 
 app.get("/auth/status", (req, res) => {
   res.json({
+    authEnabled: AUTH_ENABLED,
     authenticated: req.cookies.admin === "true"
   });
 });
@@ -309,7 +321,11 @@ function checkAdmin(req, res, next) {
 }
 
 app.get("/", (req, res) => {
-  res.send("Servidor funcionando");
+  res.json({
+    ok: true,
+    service: "registro-vida-ley",
+    storageBucket: STORAGE_BUCKET
+  });
 });
 
 app.get("/colaborador/:dni", async (req, res) => {
@@ -365,48 +381,53 @@ app.post("/generar-pdf", async (req, res) => {
   try {
     const { id_colaborador, session_id } = req.body;
 
-    const { data: col } = await supabase
+    if (!id_colaborador || !session_id) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Faltan datos para generar el PDF."
+      });
+    }
+
+    const { data: col, error: colError } = await supabase
       .from("colaboradores")
       .select("*")
       .eq("id", id_colaborador)
       .single();
 
-    const { data: beneficiarios } = await supabase
+    if (colError || !col) {
+      console.error("Error obteniendo colaborador:", colError);
+      return res.status(404).json({
+        ok: false,
+        msg: "No se encontro el colaborador."
+      });
+    }
+
+    const { data: beneficiarios, error: beneficiariosError } = await supabase
       .from("beneficiarios")
       .select("*")
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
+
+    if (beneficiariosError) {
+      console.error("Error obteniendo beneficiarios:", beneficiariosError);
+      return res.status(500).json({
+        ok: false,
+        msg: "No se pudieron obtener los beneficiarios."
+      });
+    }
+
+    if (!beneficiarios || beneficiarios.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Debes guardar al menos un beneficiario antes de generar el PDF."
+      });
+    }
 
     const doc = new PDFDocument({
       size: "A4",
       margins: { top: 32, right: 42, bottom: 38, left: 42 }
     });
     const buffers = [];
-
-    doc.on("data", buffers.push.bind(buffers));
-
-    doc.on("end", async () => {
-      try {
-        const pdfBuffer = Buffer.concat(buffers);
-        const fileName = `vida_${Date.now()}.pdf`;
-
-        await supabase.storage
-          .from("pdfs")
-          .upload(fileName, pdfBuffer, {
-            contentType: "application/pdf",
-            upsert: true
-          });
-
-        const { data } = await supabase.storage
-          .from("pdfs")
-          .createSignedUrl(fileName, 300);
-
-        res.json({ ok: true, url: data.signedUrl });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ ok: false });
-      }
-    });
 
     const palette = {
       ink: "#18323d",
@@ -604,7 +625,7 @@ app.post("/generar-pdf", async (req, res) => {
       fields: [
         {
           label: "Empleador",
-          value: cleanText(col.empleador) || "No consignado"
+          value: cleanText(col.empleador) || cleanText(process.env.EMPLOYER_NAME) || "No consignado"
         },
         {
           label: "Fecha de emision",
@@ -686,10 +707,67 @@ app.post("/generar-pdf", async (req, res) => {
         }
       );
 
-    doc.end();
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      doc.on("data", (chunk) => buffers.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(buffers)));
+      doc.on("error", reject);
+      doc.end();
+    });
+
+    const safeDni = cleanText(col.dni).replace(/[^\dA-Za-z_-]/g, "") || "sin-dni";
+    const fileName = `vida-ley/${safeDni}_${Date.now()}.pdf`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(fileName, pdfBuffer, {
+        contentType: "application/pdf",
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error("Error subiendo PDF a Supabase Storage:", uploadError);
+      return res.status(500).json({
+        ok: false,
+        msg: `No se pudo guardar el PDF en Supabase: ${uploadError.message}`
+      });
+    }
+
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(fileName, 300);
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      console.error("Error generando signed URL:", signedUrlError);
+
+      const { data: publicUrlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(fileName);
+
+      if (publicUrlData?.publicUrl) {
+        return res.json({
+          ok: true,
+          url: publicUrlData.publicUrl,
+          fileName
+        });
+      }
+
+      return res.status(500).json({
+        ok: false,
+        msg: `El PDF se guardo, pero no se pudo generar la URL de descarga: ${signedUrlError?.message || "error desconocido"}`
+      });
+    }
+
+    res.json({
+      ok: true,
+      url: signedUrlData.signedUrl,
+      fileName
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false });
+    console.error("Error general generando PDF:", err);
+    res.status(500).json({
+      ok: false,
+      msg: err.message || "Error interno generando PDF."
+    });
   }
 });
 

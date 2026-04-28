@@ -137,7 +137,28 @@ td{
 <script>
 
 // 🔥 TU BACKEND EN RENDER
-const API = "https://vida-ley-backend.onrender.com";
+function resolveApiBase(){
+  const queryApi = new URLSearchParams(window.location.search).get("api");
+  const savedApi = localStorage.getItem("vidaLeyApi");
+
+  if(queryApi){
+    const normalized = queryApi.replace(/\/+$/, "");
+    localStorage.setItem("vidaLeyApi", normalized);
+    return normalized;
+  }
+
+  if(savedApi){
+    return savedApi.replace(/\/+$/, "");
+  }
+
+  if(["localhost", "127.0.0.1"].includes(window.location.hostname)){
+    return "http://localhost:3000";
+  }
+
+  return "https://vida-ley-backend.onrender.com";
+}
+
+const API = resolveApiBase();
 
 // =====================
 // LOGIN

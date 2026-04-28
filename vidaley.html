@@ -964,8 +964,40 @@
   let authEnabled = false;
   let autenticado = false;
   let session_id = crypto.randomUUID();
+  const GENERO_LABELS = {
+    1: "Masculino",
+    2: "Femenino"
+  };
 
-  const API = "https://vida-ley-backend.onrender.com";
+  function resolveApiBase(){
+    const queryApi = new URLSearchParams(window.location.search).get("api");
+    const savedApi = localStorage.getItem("vidaLeyApi");
+
+    if(queryApi){
+      const normalized = queryApi.replace(/\/+$/, "");
+      localStorage.setItem("vidaLeyApi", normalized);
+      return normalized;
+    }
+
+    if(savedApi){
+      return savedApi.replace(/\/+$/, "");
+    }
+
+    if(["localhost", "127.0.0.1"].includes(window.location.hostname)){
+      return "http://localhost:3000";
+    }
+
+    return "https://vida-ley-backend.onrender.com";
+  }
+
+  const API = resolveApiBase();
+
+  async function apiFetch(path, options = {}){
+    return fetch(API + path, {
+      credentials: "include",
+      ...options
+    });
+  }
   const accessGate = document.getElementById("access_gate");
   const accessPassword = document.getElementById("access_password");
   const accessStatus = document.getElementById("access_status");
@@ -1010,6 +1042,10 @@
 
   function soloNumeros(valor, maximo){
     return String(valor || "").replace(/\D/g, "").slice(0, maximo);
+  }
+
+  function obtenerGeneroLabel(idGenero){
+    return GENERO_LABELS[idGenero] || "No consignado";
   }
 
   function alternarAcceso(permitido){
@@ -1152,7 +1188,7 @@
   setBusquedaLoading(true);
 
   try{
-    const r = await fetch(API + "/colaborador/" + dni);
+    const r = await apiFetch("/colaborador/" + dni);
     const d = await leerJSON(r);
 
     if(r.status === 401){
@@ -1179,7 +1215,7 @@
       d.data.apellido_paterno + " " + d.data.apellido_materno + ", " + d.data.nombres;
 
     document.getElementById("v_dni").innerText = d.data.dni;
-    document.getElementById("v_genero").innerText = d.data.genero;
+    document.getElementById("v_genero").innerText = obtenerGeneroLabel(d.data.id_genero);
 
     limpiarListas();
     actualizarResumen();
@@ -1309,7 +1345,7 @@
     btnGuardar.disabled = true;
 
     try{
-      const r = await fetch(API + "/guardar-beneficiario", {
+      const r = await apiFetch("/guardar-beneficiario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
@@ -1349,9 +1385,19 @@
     }
   }
 
-  async function generarPDF(){
+async function generarPDF(){
 
-  const r = await fetch(API + "/generar-pdf", {
+  if(!colaboradorData){
+    alert("Primero ingresa tu DNI.");
+    return;
+  }
+
+  setPdfLoading(true);
+  pdfFeedback.innerText = "Generando documento...";
+
+  try{
+
+  const r = await apiFetch("/generar-pdf", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -1362,15 +1408,24 @@
     })
   });
 
-  const res = await r.json();
+  const res = await leerJSON(r);
 
-  if (!res.ok) {
-    alert("Error generando PDF");
+  if (!r.ok || !res.ok) {
+    pdfFeedback.innerText = res.msg || "No se pudo generar el PDF.";
+    alert(res.msg || "Error generando PDF");
     return;
   }
 
   // 👉 abrir PDF guardado
+  pdfFeedback.innerText = "PDF generado y guardado correctamente.";
   window.open(res.url, "_blank");
+  }catch(error){
+    pdfFeedback.innerText = "No se pudo conectar con el servidor.";
+    alert("No se pudo conectar con el servidor para generar el PDF.");
+    console.error(error);
+  }finally{
+    setPdfLoading(false);
+  }
 }
 
   async function iniciarSesion(){
@@ -1388,7 +1443,7 @@
     setLoginLoading(true);
 
     try{
-      const r = await fetch(API + "/auth/login", {
+      const r = await apiFetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
@@ -1421,7 +1476,7 @@
 
   async function cerrarSesion(){
     try{
-      await fetch(API + "/auth/logout", { method: "POST" });
+      await apiFetch("/auth/logout", { method: "POST" });
     }catch(error){
       console.error(error);
     }finally{
@@ -1436,7 +1491,7 @@
     limpiarEstadoAcceso();
 
     try{
-      const r = await fetch(API + "/auth/status");
+      const r = await apiFetch("/auth/status");
       const res = await leerJSON(r);
 
       authEnabled = Boolean(res.authEnabled);
@@ -1460,8 +1515,7 @@
   actualizarResumen();
   inputDni.value = soloNumeros(inputDni.value, 8);
   inputDni.classList.add("dni-only");
-  //cargarEstadoAcceso();
-  autenticado = true;
+  cargarEstadoAcceso();
 </script>
 </body>
 </html>
