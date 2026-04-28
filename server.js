@@ -320,13 +320,11 @@ function checkAdmin(req, res, next) {
   next();
 }
 
+
 app.get("/", (req, res) => {
-  res.json({
-    ok: true,
-    service: "registro-vida-ley",
-    storageBucket: STORAGE_BUCKET
-  });
+  res.send("API Vida Ley funcionando 🚀");
 });
+
 
 app.get("/colaborador/:dni", async (req, res) => {
   try {
@@ -448,28 +446,137 @@ app.post("/generar-pdf", async (req, res) => {
     });
 
     // ===============================
-    // PDF (tu diseño actual)
-    // ===============================
-    doc.fontSize(12).text("DECLARACIÓN JURADA VIDA LEY", { align: "center" });
+// 🎯 FORMATO PROFESIONAL MINTRA
+// ===============================
 
-    doc.moveDown();
+const pageWidth = doc.page.width;
+const margin = 40;
+const usableWidth = pageWidth - (margin * 2);
 
-    doc.text(
-      `Trabajador: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`
-    );
+let y = 40;
 
-    doc.text(`DNI: ${col.dni}`);
+// TITULOS
+doc.font("Helvetica-Bold").fontSize(11).text("ANEXO", 0, y, { align: "center" });
 
-    doc.moveDown();
+y += 20;
 
-    doc.text("BENEFICIARIOS:");
+doc.fontSize(11).text(
+  "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS",
+  0, y, { align: "center" }
+);
 
-    beneficiarios.forEach((b, i) => {
-      doc.text(
-        `${i + 1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres} - DNI: ${b.dni}`
-      );
-    });
+y += 15;
 
+doc.text("DEL SEGURO DE VIDA", 0, y, { align: "center" });
+
+y += 20;
+
+doc.font("Helvetica").fontSize(9).text(
+  "(Decreto Legislativo N° 688 y sus normas modificatorias)",
+  0, y, { align: "center" }
+);
+
+y += 25;
+
+// TEXTO LEGAL
+doc.fontSize(9).text(
+  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688...",
+  margin, y, { width: usableWidth, align: "justify" }
+);
+
+y += 50;
+
+// ===============================
+// 🧾 DATOS TRABAJADOR
+// ===============================
+doc.rect(margin, y, usableWidth, 25).stroke();
+doc.text(
+  `Nombres y apellidos: ${buildFullName(col)}    DNI: ${col.dni}`,
+  margin + 5,
+  y + 7
+);
+
+y += 30;
+
+doc.rect(margin, y, usableWidth, 25).stroke();
+doc.text("Nombre o razón social del empleador:", margin + 5, y + 7);
+
+y += 40;
+
+// ===============================
+// 📊 TABLA BENEFICIARIOS
+// ===============================
+
+const columns = [
+  { key: "nombre", width: 150 },
+  { key: "dni", width: 80 },
+  { key: "parentesco", width: 80 },
+  { key: "fecha", width: 90 },
+  { key: "domicilio", width: 120 }
+];
+
+// HEADER
+drawTableRow(doc, {
+  x: margin,
+  y,
+  row: {
+    nombre: "Nombre y apellidos",
+    dni: "DNI",
+    parentesco: "Parentesco",
+    fecha: "Fecha Nac.",
+    domicilio: "Domicilio"
+  },
+  columns,
+  height: 25,
+  palette: {
+    primary: "#000",
+    line: "#000",
+    ink: "#000",
+    zebra: "#f5f5f5"
+  },
+  isHeader: true
+});
+
+y += 25;
+
+// FILAS
+beneficiarios.forEach((b, i) => {
+
+  const row = {
+    nombre: buildFullName(b),
+    dni: b.dni,
+    parentesco: getParentescoLabel(b.id_parentesco),
+    fecha: formatShortDate(b.fecha_nacimiento),
+    domicilio: b.domicilio
+  };
+
+  const height = getTableRowHeight(doc, row, columns, 6);
+
+  drawTableRow(doc, {
+    x: margin,
+    y,
+    row,
+    columns,
+    height,
+    palette: {
+      line: "#000",
+      ink: "#000",
+      zebra: i % 2 === 0 ? "#fff" : "#f9f9f9"
+    },
+    zebra: true
+  });
+
+  y += height;
+});
+
+// ===============================
+// ✍ FIRMA
+// ===============================
+y += 40;
+
+doc.text("______________________________", margin + 150, y);
+y += 15;
+doc.text("Firma del trabajador", margin + 160, y);
     doc.moveDown(3);
 
     doc.text("__________________________");
