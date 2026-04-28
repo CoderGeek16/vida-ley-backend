@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+
+body{
+  font-family: Arial;
+  font-size: 12px;
+  padding: 40px;
+}
+
+h3{
+  text-align:center;
+  margin:0;
+}
+
+.sub{
+  text-align:center;
+  font-size:11px;
+}
+
+p{
+  text-align:justify;
+  font-size:11px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+td, th{
+  border:1px solid black;
+  padding:6px;
+  font-size:11px;
+}
+
+.firma{
+  margin-top:60px;
+  text-align:center;
+}
+
+</style>
+</head>
+
+<body>
+
+<h3>ANEXO</h3>
+<h3>FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS</h3>
+<h3>DEL SEGURO DE VIDA</h3>
+
+<p class="sub">(Decreto Legislativo N° 688)</p>
+
+<p>
+El/la suscrito(a) declara como beneficiarios del seguro de vida:
+</p>
+
+<table>
+<tr>
+<td><b>Nombres:</b> {{NOMBRE}}</td>
+<td><b>DNI:</b> {{DNI}}</td>
+</tr>
+</table>
+
+<h4>Beneficiarios</h4>
+
+<table>
+<tr>
+<th>Nombre</th>
+<th>DNI</th>
+<th>Parentesco</th>
+<th>Fecha</th>
+<th>Domicilio</th>
+</tr>
+
+{{FILAS}}
+
+</table>
+
+<div class="firma">
+_____________________________<br>
+Firma del trabajador
+</div>
+
+</body>
+</html>

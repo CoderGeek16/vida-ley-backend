@@ -5,6 +5,9 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { createClient } = require("@supabase/supabase-js");
 const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
+const puppeteer = require("puppeteer");
 
 const app = express();
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "pdfs";
@@ -404,48 +407,88 @@ app.post("/generar-pdf", async (req, res) => {
       return res.json({ ok: false, msg: "Sin beneficiarios" });
     }
 
-    const doc = new PDFDocument({ margin: 40 });
-    const buffers = [];
-
-    doc.on("data", buffers.push.bind(buffers));
-
-    doc.on("end", async () => {
-
-      const pdfBuffer = Buffer.concat(buffers);
-
-      // 🔥 INTENTO STORAGE (sin romper si falla)
-      try {
-        const fileName = `vida_${Date.now()}.pdf`;
-
-        const { error } = await supabase.storage
-          .from("pdfs")
-          .upload(fileName, pdfBuffer, {
-            contentType: "application/pdf",
-            upsert: true
-          });
-
-        if (!error) {
-          const { data } = await supabase.storage
-            .from("pdfs")
-            .createSignedUrl(fileName, 300);
-
-          if (data?.signedUrl) {
-            return res.json({ ok: true, url: data.signedUrl });
-          }
-        }
-
-      } catch (e) {
-        console.log("Storage falló, se envía directo");
-      }
-
-      // 🔥 SI FALLA STORAGE → ENVÍA PDF IGUAL
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "inline; filename=vida_ley.pdf");
-      return res.send(pdfBuffer);
-
-    });
+    // ===============================
+    // 📄 CARGAR TEMPLATE HTML
+    // ===============================
+    const templatePath = path.join(__dirname, "templates", "formato-mintra.html");
+    let html = fs.readFileSync(templatePath, "utf8");
 
     // ===============================
+    // 🔄 REEMPLAZOS
+    // ===============================
+    html = html.replace("{{NOMBRE}}", buildFullName(col));
+    html = html.replace("{{DNI}}", col.dni);
+
+    const filas = beneficiarios.map(b => `
+      <tr>
+        <td>${buildFullName(b)}</td>
+        <td>${b.dni}</td>
+        <td>${getParentescoLabel(b.id_parentesco)}</td>
+        <td>${formatShortDate(b.fecha_nacimiento)}</td>
+        <td>${b.domicilio || ""}</td>
+      </tr>
+    `).join("");
+
+    html = html.replace("{{FILAS}}", filas);
+
+    // ===============================
+    // 🚀 GENERAR PDF CON PUPPETEER
+    // ===============================
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: "new"
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true
+    });
+
+    await browser.close();
+
+    // ===============================
+    // ☁️ GUARDAR EN SUPABASE (opcional)
+    // ===============================
+    try {
+      const fileName = `vida_${Date.now()}.pdf`;
+
+      const { error } = await supabase.storage
+        .from("pdfs")
+        .upload(fileName, pdfBuffer, {
+          contentType: "application/pdf",
+          upsert: true
+        });
+
+      if (!error) {
+        const { data } = await supabase.storage
+          .from("pdfs")
+          .createSignedUrl(fileName, 300);
+
+        if (data?.signedUrl) {
+          return res.json({ ok: true, url: data.signedUrl });
+        }
+      }
+
+    } catch (e) {
+      console.log("Storage falló, se envía directo");
+    }
+
+    // fallback
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, msg: "Error generando PDF" });
+  }
+});
+
+
+// ===============================
 // 🎯 FORMATO PROFESIONAL MINTRA
 // ===============================
 
@@ -480,7 +523,10 @@ y += 25;
 
 // TEXTO LEGAL
 doc.fontSize(9).text(
-  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688...",
+  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688,
+  Ley de consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre
+  los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de
+  fallecimiento a consecuencia de un accidente.",
   margin, y, { width: usableWidth, align: "justify" }
 );
 
@@ -577,6 +623,7 @@ y += 40;
 doc.text("______________________________", margin + 150, y);
 y += 15;
 doc.text("Firma del trabajador", margin + 160, y);
+
     doc.moveDown(3);
 
     doc.text("__________________________");
