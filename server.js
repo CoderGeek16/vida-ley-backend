@@ -200,32 +200,121 @@ app.post("/generar-pdf", async (req, res) => {
     });
 
     // CONTENIDO PDF
-    doc.fontSize(16).text("DECLARACIÓN JURADA VIDA LEY", { align:"center" });
-    doc.moveDown();
+   // ===============================
+// 📄 FORMATO MINTRA
+// ===============================
 
-    doc.fontSize(12);
-    doc.text(`Nombre: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
-    doc.text(`DNI: ${col.dni}`);
-    doc.moveDown();
+doc.fontSize(12).font("Helvetica-Bold");
+doc.text("ANEXO", { align: "center" });
 
-    doc.text("BENEFICIARIOS:");
-    doc.moveDown();
+doc.moveDown(0.5);
 
-    (beneficiarios || []).forEach((b, i) => {
-      doc.text(`${i+1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`);
-      doc.text(`   DNI: ${b.dni || ""}`);
-      doc.text(`   Parentesco: ${b.id_parentesco}`);
-      doc.text(`   Fecha Nac: ${b.fecha_nacimiento}`);
-      doc.moveDown();
-    });
-
-    doc.end();
-
-  } catch (err) {
-    console.error("ERROR PDF:", err);
-    res.status(500).json({ ok:false });
-  }
+doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA", {
+  align: "center"
 });
+
+doc.moveDown(0.5);
+
+doc.font("Helvetica").fontSize(10);
+doc.text("(Decreto Legislativo N° 688 y sus normas modificatorias)", {
+  align: "center"
+});
+
+doc.moveDown();
+
+// TEXTO LEGAL
+doc.text("El/la suscrito(a), formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida.");
+
+doc.moveDown();
+
+// DATOS TRABAJADOR
+doc.font("Helvetica-Bold");
+doc.text("Datos del trabajador:");
+
+doc.font("Helvetica");
+doc.text(`Nombres y apellidos: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
+doc.text(`DNI: ${col.dni}`);
+
+doc.moveDown();
+
+// ===============================
+// 🔵 PRIMEROS BENEFICIARIOS
+// ===============================
+doc.font("Helvetica-Bold");
+doc.text("Primeros Beneficiarios:");
+
+doc.moveDown(0.5);
+
+// CABECERA TABLA
+doc.fontSize(9).font("Helvetica-Bold");
+doc.text("Nombre completo", 40, doc.y, { width: 120 });
+doc.text("DNI", 160, doc.y - 10, { width: 60 });
+doc.text("Parentesco", 220, doc.y - 10, { width: 80 });
+doc.text("F. Nac", 300, doc.y - 10, { width: 80 });
+doc.text("Domicilio", 380, doc.y - 10, { width: 150 });
+
+doc.moveDown();
+
+// FILAS
+doc.font("Helvetica");
+
+(beneficiarios || [])
+  .filter(b => b.tipo === "PRIMERO")
+  .forEach(b => {
+    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, 40, doc.y, { width: 120 });
+    doc.text(b.dni || "", 160, doc.y - 10, { width: 60 });
+    doc.text(b.id_parentesco || "", 220, doc.y - 10, { width: 80 });
+    doc.text(b.fecha_nacimiento || "", 300, doc.y - 10, { width: 80 });
+    doc.text(b.domicilio || "", 380, doc.y - 10, { width: 150 });
+
+    doc.moveDown();
+  });
+
+doc.moveDown();
+
+// ===============================
+// 🟠 SEGUNDOS BENEFICIARIOS
+// ===============================
+doc.font("Helvetica-Bold");
+doc.text("Solo a falta de los primeros beneficiarios:");
+
+doc.moveDown(0.5);
+
+doc.fontSize(9).font("Helvetica-Bold");
+doc.text("Nombre completo", 40, doc.y, { width: 120 });
+doc.text("DNI", 160, doc.y - 10, { width: 60 });
+doc.text("Parentesco", 220, doc.y - 10, { width: 80 });
+doc.text("F. Nac", 300, doc.y - 10, { width: 80 });
+doc.text("Domicilio", 380, doc.y - 10, { width: 150 });
+
+doc.moveDown();
+
+doc.font("Helvetica");
+
+(beneficiarios || [])
+  .filter(b => b.tipo === "SEGUNDO")
+  .forEach(b => {
+    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, 40, doc.y, { width: 120 });
+    doc.text(b.dni || "", 160, doc.y - 10, { width: 60 });
+    doc.text(b.id_parentesco || "", 220, doc.y - 10, { width: 80 });
+    doc.text(b.fecha_nacimiento || "", 300, doc.y - 10, { width: 80 });
+    doc.text(b.domicilio || "", 380, doc.y - 10, { width: 150 });
+
+    doc.moveDown();
+  });
+
+// ===============================
+// ✍ FIRMA
+// ===============================
+doc.moveDown(2);
+
+doc.text("______________________________", 200);
+doc.text("Firma del trabajador(a)", 210);
+
+doc.moveDown();
+
+const fecha = new Date();
+doc.text(`Fecha: ${fecha.toLocaleDateString()}`, { align: "right" });
 
 // ===============================
 // 🔥 ADMIN (PROTEGIDO)
