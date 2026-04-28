@@ -272,8 +272,7 @@ app.post("/generar-pdf", async (req, res) => {
     console.error(err);
     res.status(500).json({ ok:false });
   }
-});
-    
+});    
 
 // ===============================
 // 🔥 ADMIN
