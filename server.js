@@ -1,16 +1,253 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { createClient } = require('@supabase/supabase-js');
+const { createClient } = require("@supabase/supabase-js");
 const PDFDocument = require("pdfkit");
 
 const app = express();
 
-// ===============================
-// 🔐 MIDDLEWARE
-// ===============================
+const PARENTESCO_LABELS = {
+  1: "Conyuge",
+  2: "Hijo(a)",
+  3: "Padre",
+  4: "Conviviente",
+  5: "Madre",
+  6: "Hermano(a)"
+};
+
+const GENERO_LABELS = {
+  1: "Masculino",
+  2: "Femenino"
+};
+
+function cleanText(value) {
+  return String(value || "").trim();
+}
+
+function buildFullName(person) {
+  return [
+    cleanText(person?.apellido_paterno),
+    cleanText(person?.apellido_materno),
+    cleanText(person?.nombres)
+  ].filter(Boolean).join(" ");
+}
+
+function formatShortDate(value) {
+  if (!value) return "";
+
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return cleanText(value);
+  }
+
+  return parsed.toLocaleDateString("es-PE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+}
+
+function formatLongDate(value = new Date()) {
+  const parsed = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toLocaleDateString("es-PE", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function getParentescoLabel(id) {
+  return PARENTESCO_LABELS[id] || cleanText(id) || "-";
+}
+
+function getGeneroLabel(id, fallback = "") {
+  return GENERO_LABELS[id] || cleanText(fallback) || "-";
+}
+
+function drawTag(doc, x, y, width, height, text, palette) {
+  doc
+    .save()
+    .roundedRect(x, y, width, height, 9)
+    .fill(palette.accent);
+
+  doc
+    .fillColor("#ffffff")
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text(text, x, y + 8, {
+      width,
+      align: "center"
+    })
+    .restore();
+}
+
+function drawSectionTitle(doc, text, x, y, width, palette) {
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .fillColor(palette.primary)
+    .text(text, x, y, { width });
+
+  doc
+    .moveTo(x, y + 18)
+    .lineTo(x + width, y + 18)
+    .lineWidth(1)
+    .strokeColor(palette.lineStrong)
+    .stroke();
+}
+
+function drawInfoCard(doc, {
+  x,
+  y,
+  width,
+  title,
+  fields,
+  palette
+}) {
+  const padding = 14;
+
+  doc
+    .save()
+    .roundedRect(x, y, width, 102, 16)
+    .fillAndStroke("#ffffff", palette.line);
+
+  doc
+    .roundedRect(x, y, width, 28, 16)
+    .fill(palette.soft);
+
+  doc
+    .fillColor(palette.primary)
+    .font("Helvetica-Bold")
+    .fontSize(10.5)
+    .text(title, x + padding, y + 9, {
+      width: width - (padding * 2)
+    });
+
+  let currentY = y + 38;
+
+  fields.forEach((field) => {
+    doc
+      .fillColor(palette.muted)
+      .font("Helvetica-Bold")
+      .fontSize(7.5)
+      .text(field.label.toUpperCase(), x + padding, currentY, {
+        width: width - (padding * 2)
+      });
+
+    currentY += 10;
+
+    doc
+      .fillColor(palette.ink)
+      .font("Helvetica")
+      .fontSize(10)
+      .text(field.value || "-", x + padding, currentY, {
+        width: width - (padding * 2)
+      });
+
+    currentY += 18;
+  });
+
+  doc.restore();
+}
+
+function drawCallout(doc, {
+  x,
+  y,
+  width,
+  text,
+  palette
+}) {
+  doc.font("Helvetica").fontSize(8.3);
+
+  const height = Math.max(28, doc.heightOfString(text, {
+    width: width - 26,
+    align: "left"
+  }) + 14);
+
+  doc
+    .save()
+    .roundedRect(x, y, width, height, 10)
+    .fillAndStroke("#fbfcfd", palette.line);
+
+  doc
+    .roundedRect(x, y, 6, height, 10)
+    .fill(palette.accent);
+
+  doc
+    .fillColor(palette.muted)
+    .font("Helvetica")
+    .fontSize(8.3)
+    .text(text, x + 14, y + 7, {
+      width: width - 24,
+      lineGap: 1.5
+    })
+    .restore();
+
+  return height;
+}
+
+function getTableRowHeight(doc, row, columns, cellPadding) {
+  const minHeight = 26;
+
+  const tallest = columns.reduce((maxHeight, column) => {
+    const textHeight = doc.heightOfString(row[column.key] || "-", {
+      width: column.width - (cellPadding * 2),
+      align: column.align || "left"
+    });
+
+    return Math.max(maxHeight, textHeight + (cellPadding * 2));
+  }, minHeight);
+
+  return Math.max(minHeight, tallest);
+}
+
+function drawTableRow(doc, {
+  x,
+  y,
+  row,
+  columns,
+  height,
+  palette,
+  isHeader = false,
+  zebra = false
+}) {
+  const cellPadding = 6;
+  let cursorX = x;
+
+  columns.forEach((column) => {
+    const fillColor = isHeader
+      ? palette.primary
+      : zebra
+        ? palette.zebra
+        : "#ffffff";
+
+    doc
+      .save()
+      .rect(cursorX, y, column.width, height)
+      .fillAndStroke(fillColor, palette.line);
+
+    doc
+      .fillColor(isHeader ? "#ffffff" : palette.ink)
+      .font(isHeader ? "Helvetica-Bold" : "Helvetica")
+      .fontSize(isHeader ? 8.7 : 8.6)
+      .text(row[column.key] || "-", cursorX + cellPadding, y + cellPadding, {
+        width: column.width - (cellPadding * 2),
+        align: column.align || "left"
+      })
+      .restore();
+
+    cursorX += column.width;
+  });
+}
+
 const allowedOrigins = [
   "http://127.0.0.1:5500",
   "http://localhost:5500",
@@ -18,7 +255,7 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -31,17 +268,11 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// ===============================
-// 🔌 SUPABASE
-// ===============================
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// ===============================
-// 🔐 AUTH
-// ===============================
 app.post("/auth/login", (req, res) => {
   const { password } = req.body;
 
@@ -69,26 +300,18 @@ app.get("/auth/status", (req, res) => {
   });
 });
 
-// ===============================
-// 🔐 PROTECCIÓN
-// ===============================
-function checkAdmin(req, res, next){
-  if(req.cookies.admin !== "true"){
-    return res.status(403).json({ ok:false, msg:"No autorizado" });
+function checkAdmin(req, res, next) {
+  if (req.cookies.admin !== "true") {
+    return res.status(403).json({ ok: false, msg: "No autorizado" });
   }
+
   next();
 }
 
-// ===============================
-// 🟢 TEST
-// ===============================
 app.get("/", (req, res) => {
-  res.send("Servidor funcionando 🚀");
+  res.send("Servidor funcionando");
 });
 
-// ===============================
-// 🔍 COLABORADOR
-// ===============================
 app.get("/colaborador/:dni", async (req, res) => {
   try {
     const { data } = await supabase
@@ -100,19 +323,14 @@ app.get("/colaborador/:dni", async (req, res) => {
     if (!data) return res.json({ ok: false });
 
     res.json({ ok: true, data });
-
   } catch (err) {
     console.error(err);
     res.json({ ok: false });
   }
 });
 
-// ===============================
-// 💾 GUARDAR BENEFICIARIO
-// ===============================
 app.post("/guardar-beneficiario", async (req, res) => {
   try {
-
     const data = {
       id_colaborador: req.body.id_colaborador,
       session_id: req.body.session_id,
@@ -137,19 +355,14 @@ app.post("/guardar-beneficiario", async (req, res) => {
     }
 
     res.json({ ok: true });
-
   } catch (err) {
     console.error(err);
     res.json({ ok: false });
   }
 });
 
-// ===============================
-// 📄 GENERAR PDF
-// ===============================
 app.post("/generar-pdf", async (req, res) => {
   try {
-
     const { id_colaborador, session_id } = req.body;
 
     const { data: col } = await supabase
@@ -164,8 +377,11 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    const doc = new PDFDocument({ margin: 40 });
-    let buffers = [];
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 32, right: 42, bottom: 38, left: 42 }
+    });
+    const buffers = [];
 
     doc.on("data", buffers.push.bind(buffers));
 
@@ -185,209 +401,307 @@ app.post("/generar-pdf", async (req, res) => {
           .from("pdfs")
           .createSignedUrl(fileName, 300);
 
-        res.json({ ok:true, url:data.signedUrl });
-
+        res.json({ ok: true, url: data.signedUrl });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ ok:false });
+        res.status(500).json({ ok: false });
       }
     });
 
-// ===============================
-// ===============================
-// 🇵🇪 PDF SUNAFIL FIX REAL
-// ===============================
+    const palette = {
+      ink: "#18323d",
+      muted: "#61717c",
+      primary: "#0a6772",
+      accent: "#d98a3b",
+      soft: "#eef5f6",
+      line: "#c9d4db",
+      lineStrong: "#8fa7b4",
+      zebra: "#f8fbfc"
+    };
 
-doc.font("Helvetica");
+    const marginX = 42;
+    const contentWidth = doc.page.width - (marginX * 2);
+    const leftCardWidth = 318;
+    const gap = 14;
+    const rightCardWidth = contentWidth - leftCardWidth - gap;
+    const cardY = 172;
 
-const X = 40;
-let Y = 40;
-const W = 520;
-const H = 20;
+    const primeros = (beneficiarios || []).filter((b) => b.tipo === "PRIMERO");
+    const segundos = (beneficiarios || []).filter((b) => b.tipo === "SEGUNDO");
 
-// ===============================
-// TITULO
-// ===============================
-doc.font("Helvetica-Bold").fontSize(11);
-doc.text("ANEXO", 0, Y, { align: "center" });
+    const toTableRows = (items) => items.map((b) => ({
+      nombre: buildFullName(b) || "-",
+      dni: cleanText(b.dni) || "-",
+      parentesco: getParentescoLabel(b.id_parentesco),
+      nacimiento: formatShortDate(b.fecha_nacimiento) || "-",
+      domicilio: cleanText(b.domicilio) || "-"
+    }));
 
-Y += 20;
+    const drawBeneficiarySection = ({ title, subtitle, rows, y, note }) => {
+      drawSectionTitle(doc, title, marginX, y, contentWidth, palette);
 
-doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS", {
-  align: "center"
-});
+      doc
+        .fillColor(palette.muted)
+        .font("Helvetica")
+        .fontSize(8.8)
+        .text(subtitle, marginX, y + 24, {
+          width: contentWidth
+        });
 
-Y += 15;
+      let cursorY = y + 42;
 
-doc.text("DEL SEGURO DE VIDA", { align: "center" });
+      const columns = [
+        { key: "nombre", width: 154 },
+        { key: "dni", width: 66, align: "center" },
+        { key: "parentesco", width: 90, align: "center" },
+        { key: "nacimiento", width: 80, align: "center" },
+        { key: "domicilio", width: 121 }
+      ];
 
-Y += 20;
+      drawTableRow(doc, {
+        x: marginX,
+        y: cursorY,
+        row: {
+          nombre: "Beneficiario",
+          dni: "DNI",
+          parentesco: "Parentesco",
+          nacimiento: "Nacimiento",
+          domicilio: "Domicilio"
+        },
+        columns,
+        height: 24,
+        palette,
+        isHeader: true
+      });
 
-doc.font("Helvetica").fontSize(9);
-doc.text("(Decreto Legislativo N° 688)", { align: "center" });
+      cursorY += 24;
 
-Y += 30;
+      const tableRows = rows.length > 0
+        ? rows
+        : Array.from({ length: 3 }, () => ({
+            nombre: "",
+            dni: "",
+            parentesco: "",
+            nacimiento: "",
+            domicilio: ""
+          }));
 
-// ===============================
-// TEXTO
-// ===============================
-doc.text(
-  "El/la suscrito(a), formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida.",
-  X,
-  Y,
-  { width: W }
-);
+      tableRows.forEach((row, index) => {
+        doc.font("Helvetica").fontSize(8.6);
 
-Y += 40;
+        const rowHeight = getTableRowHeight(doc, row, columns, 6);
 
-// ===============================
-// DATOS
-// ===============================
-doc.rect(X, Y, W, H).stroke();
-doc.text(
-  `Nombres y apellidos del trabajador: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}     DNI: ${col.dni}`,
-  X + 5,
-  Y + 5
-);
+        drawTableRow(doc, {
+          x: marginX,
+          y: cursorY,
+          row,
+          columns,
+          height: rowHeight,
+          palette,
+          zebra: index % 2 === 1
+        });
 
-Y += H;
+        cursorY += rowHeight;
+      });
 
-doc.rect(X, Y, W, H).stroke();
-doc.text(`Empleador: ${col.empleador || ""}`, X + 5, Y + 5);
+      const noteHeight = drawCallout(doc, {
+        x: marginX,
+        y: cursorY + 10,
+        width: contentWidth,
+        text: note,
+        palette
+      });
 
-Y += 40;
+      return cursorY + noteHeight + 10;
+    };
 
-// ===============================
-// PRIMEROS BENEFICIARIOS
-// ===============================
-doc.font("Helvetica-Bold");
-doc.text("Primeros Beneficiarios:", X, Y);
+    doc.info = {
+      Title: "Declaracion Jurada de Beneficiarios - Seguro de Vida Ley",
+      Author: "Registro Vida Ley",
+      Subject: "Beneficiarios del Seguro de Vida Ley"
+    };
 
-Y += 15;
+    doc
+      .rect(0, 0, doc.page.width, 16)
+      .fill(palette.primary);
 
-// HEADER
-doc.rect(X, Y, W, H).stroke();
-doc.text("Nombre", X + 5, Y + 5);
-doc.text("DNI", X + 200, Y + 5);
-doc.text("Parentesco", X + 260, Y + 5);
-doc.text("Fecha", X + 350, Y + 5);
-doc.text("Domicilio", X + 430, Y + 5);
+    drawTag(doc, marginX, 32, 102, 28, "ANEXO", palette);
 
-Y += H;
+    doc
+      .fillColor(palette.ink)
+      .font("Helvetica-Bold")
+      .fontSize(15.5)
+      .text("DECLARACION JURADA DE BENEFICIARIOS", marginX, 72, {
+        width: contentWidth,
+        align: "center"
+      });
 
-// FILAS
-const primeros = (beneficiarios || []).filter(b => b.tipo === "PRIMERO");
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(13)
+      .text("DEL SEGURO DE VIDA LEY", marginX, 92, {
+        width: contentWidth,
+        align: "center"
+      });
 
-if (primeros.length === 0) {
-  for (let i = 0; i < 3; i++) {
-    doc.rect(X, Y, W, H).stroke();
-    Y += H;
-  }
-} else {
-  primeros.forEach(b => {
-    doc.rect(X, Y, W, H).stroke();
+    doc
+      .fillColor(palette.muted)
+      .font("Helvetica")
+      .fontSize(9)
+      .text("(Decreto Legislativo N° 688)", marginX, 114, {
+        width: contentWidth,
+        align: "center"
+      });
 
-    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, X + 5, Y + 5);
-    doc.text(b.dni, X + 200, Y + 5);
-    doc.text(b.id_parentesco || "", X + 260, Y + 5);
-    doc.text(b.fecha_nacimiento || "", X + 350, Y + 5);
-    doc.text(b.domicilio || "", X + 430, Y + 5);
+    doc
+      .save()
+      .roundedRect(marginX, 136, contentWidth, 52, 16)
+      .fillAndStroke("#fbfcfd", palette.line)
+      .restore();
 
-    Y += H;
-  });
-}
+    doc
+      .fillColor(palette.ink)
+      .font("Helvetica")
+      .fontSize(9.3)
+      .text(
+        "El/la suscrito(a) formula la presente declaracion jurada sobre los beneficiarios del Seguro de Vida Ley, dejando constancia de la informacion consignada para fines de registro interno y respaldo documentario.",
+        marginX + 16,
+        151,
+        {
+          width: contentWidth - 32,
+          lineGap: 2,
+          align: "justify"
+        }
+      );
 
-// 👉 NOTAS FIJAS (NO dinámicas)
-doc.fontSize(8);
-doc.text("(*) A falta de cónyuge, se puede nombrar conviviente.", 380, 260, { width: 180 });
-doc.text("(**) Descendientes según Código Civil.", 380, 280, { width: 180 });
+    drawInfoCard(doc, {
+      x: marginX,
+      y: cardY,
+      width: leftCardWidth,
+      title: "Datos del trabajador",
+      fields: [
+        {
+          label: "Nombres y apellidos",
+          value: buildFullName(col)
+        },
+        {
+          label: "DNI",
+          value: cleanText(col.dni)
+        },
+        {
+          label: "Genero",
+          value: getGeneroLabel(col.id_genero, col.genero)
+        }
+      ],
+      palette
+    });
 
-Y += 30;
+    drawInfoCard(doc, {
+      x: marginX + leftCardWidth + gap,
+      y: cardY,
+      width: rightCardWidth,
+      title: "Datos complementarios",
+      fields: [
+        {
+          label: "Empleador",
+          value: cleanText(col.empleador) || "No consignado"
+        },
+        {
+          label: "Fecha de emision",
+          value: formatLongDate(new Date())
+        },
+        {
+          label: "Documento",
+          value: "Registro referencial de beneficiarios"
+        }
+      ],
+      palette
+    });
 
-// ===============================
-// SEGUNDOS BENEFICIARIOS
-// ===============================
-doc.font("Helvetica-Bold");
-doc.text("Solo a falta de los Primeros Beneficiarios:", X, Y);
+    let currentY = 292;
 
-Y += 15;
+    currentY = drawBeneficiarySection({
+      title: "Primeros beneficiarios",
+      subtitle: "Se consigna conyuge, conviviente o descendientes declarados por el trabajador.",
+      rows: toTableRows(primeros),
+      y: currentY,
+      note: "(*) A falta de conyuge, puede designarse conviviente. (**) Los descendientes se consideran conforme a lo previsto por el Codigo Civil."
+    });
 
-// HEADER
-doc.rect(X, Y, W, H).stroke();
-doc.text("Nombre", X + 5, Y + 5);
-doc.text("DNI", X + 200, Y + 5);
-doc.text("Parentesco", X + 260, Y + 5);
-doc.text("Fecha", X + 350, Y + 5);
-doc.text("Domicilio", X + 430, Y + 5);
+    currentY += 16;
 
-Y += H;
+    currentY = drawBeneficiarySection({
+      title: "Segundos beneficiarios",
+      subtitle: "Se registran solo a falta de los primeros beneficiarios declarados.",
+      rows: toTableRows(segundos),
+      y: currentY,
+      note: "(***) Los ascendientes u otros familiares consignados deben responder a la declaracion expresa del trabajador y al sustento normativo aplicable."
+    });
 
-// FILAS
-const segundos = (beneficiarios || []).filter(b => b.tipo === "SEGUNDO");
+    const signatureTop = Math.max(currentY + 24, 708);
 
-if (segundos.length === 0) {
-  for (let i = 0; i < 3; i++) {
-    doc.rect(X, Y, W, H).stroke();
-    Y += H;
-  }
-} else {
-  segundos.forEach(b => {
-    doc.rect(X, Y, W, H).stroke();
+    doc
+      .moveTo(marginX, signatureTop)
+      .lineTo(doc.page.width - marginX, signatureTop)
+      .lineWidth(1)
+      .strokeColor(palette.line)
+      .stroke();
 
-    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, X + 5, Y + 5);
-    doc.text(b.dni, X + 200, Y + 5);
-    doc.text(b.id_parentesco || "", X + 260, Y + 5);
-    doc.text(b.fecha_nacimiento || "", X + 350, Y + 5);
-    doc.text(b.domicilio || "", X + 430, Y + 5);
+    doc
+      .moveTo(marginX + 148, signatureTop + 48)
+      .lineTo(marginX + 356, signatureTop + 48)
+      .lineWidth(1)
+      .strokeColor(palette.lineStrong)
+      .stroke();
 
-    Y += H;
-  });
-}
+    doc
+      .fillColor(palette.ink)
+      .font("Helvetica-Bold")
+      .fontSize(9.5)
+      .text("Firma del trabajador", marginX + 176, signatureTop + 56, {
+        width: 150,
+        align: "center"
+      });
 
-// NOTA
-doc.fontSize(8);
-doc.text("(***) Ascendientes según Código Civil.", 380, 420, { width: 180 });
+    doc
+      .fillColor(palette.muted)
+      .font("Helvetica")
+      .fontSize(9)
+      .text(`Fecha: ${formatLongDate(new Date())}`, doc.page.width - marginX - 170, signatureTop + 12, {
+        width: 170,
+        align: "right"
+      });
 
-// ===============================
-// FIRMA
-// ===============================
-Y += 40;
+    doc
+      .fillColor(palette.muted)
+      .font("Helvetica-Oblique")
+      .fontSize(7.8)
+      .text(
+        "Documento generado automaticamente por el sistema de Registro Vida Ley.",
+        marginX,
+        doc.page.height - 38,
+        {
+          width: contentWidth,
+          align: "center"
+        }
+      );
 
-doc.text("______________________________", 200, Y);
-doc.text("Firma del trabajador", 210, Y + 15);
-
-// ===============================
-// FECHA
-// ===============================
-const fecha = new Date();
-
-doc.text(
-  `Lima, ${fecha.getDate()} de ${fecha.toLocaleString('es-ES', { month: 'long' })} del ${fecha.getFullYear()}`,
-  350,
-  Y + 50
-);
-
-doc.end();
-
+    doc.end();
   } catch (err) {
     console.error(err);
-    res.status(500).json({ ok:false });
+    res.status(500).json({ ok: false });
   }
-});    
+});
 
-// ===============================
-// 🔥 ADMIN
-// ===============================
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase
     .from("colaboradores")
     .select("*");
 
-  res.json({ ok:true, data });
+  res.json({ ok: true, data });
 });
 
 app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
-
   const { data: col } = await supabase
     .from("colaboradores")
     .select("*")
@@ -399,7 +713,7 @@ app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
     .select("*")
     .eq("id_colaborador", req.params.id);
 
-  res.json({ ok:true, colaborador:col, beneficiarios:ben });
+  res.json({ ok: true, colaborador: col, beneficiarios: ben });
 });
 
 app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
@@ -407,13 +721,11 @@ app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
     .from("beneficiarios")
     .select("id");
 
-  res.json({ ok:true, total:data.length });
+  res.json({ ok: true, total: data.length });
 });
 
-// ===============================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Servidor corriendo en " + PORT + " 🚀");
-  
+  console.log("Servidor corriendo en " + PORT);
 });
