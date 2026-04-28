@@ -380,41 +380,47 @@ app.post("/guardar-beneficiario", async (req, res) => {
   }
 });
 
-app.post("/generar-pdf", async (req, res) => {
+app.poapp.post("/generar-pdf", async (req, res) => {
   try {
-
     const { id_colaborador, session_id } = req.body;
 
     if (!id_colaborador || !session_id) {
       return res.json({ ok: false, msg: "Datos incompletos" });
     }
 
-    const { data: col } = await supabase
+    // ===============================
+    // 🔎 COLABORADOR
+    // ===============================
+    const { data: col, error: errCol } = await supabase
       .from("colaboradores")
       .select("*")
       .eq("id", id_colaborador)
       .single();
 
-    if (!col) {
+    if (errCol || !col) {
       return res.json({ ok: false, msg: "Colaborador no existe" });
     }
 
-    const { data: beneficiarios } = await supabase
+    // ===============================
+    // 👨‍👩‍👧 BENEFICIARIOS
+    // ===============================
+    const { data: beneficiarios, error: errBen } = await supabase
       .from("beneficiarios")
       .select("*")
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    if (!beneficiarios || beneficiarios.length === 0) {
+    if (errBen || !beneficiarios || beneficiarios.length === 0) {
       return res.json({ ok: false, msg: "Sin beneficiarios" });
     }
 
     // ===============================
-    // 📄 CARGAR TEMPLATE HTML
+    // 📄 TEMPLATE HTML
     // ===============================
-    const templatePath = path.resolve("templates/formato-mintra.html");
+    const templatePath = path.join(__dirname, "templates", "formato-mintra.html");
+
     if (!fs.existsSync(templatePath)) {
-      console.error("NO EXISTE TEMPLATE:", templatePath);
+      console.error("❌ TEMPLATE NO EXISTE:", templatePath);
       return res.json({ ok: false, msg: "No se encuentra plantilla PDF" });
     }
 
@@ -439,23 +445,23 @@ app.post("/generar-pdf", async (req, res) => {
     html = html.replace("{{FILAS}}", filas);
 
     // ===============================
-    // 🚀 GENERAR PDF CON PUPPETEER
+    // 🚀 PUPPETEER FIX RENDER
     // ===============================
-      const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--no-zygote",
-      "--single-process"
-    ]
-  });
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ]
+    });
 
     const page = await browser.newPage();
 
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, {
+      waitUntil: "networkidle0"
+    });
 
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -465,39 +471,41 @@ app.post("/generar-pdf", async (req, res) => {
     await browser.close();
 
     // ===============================
-    // ☁️ GUARDAR EN SUPABASE (opcional)
+    // ☁️ SUBIR A SUPABASE
     // ===============================
-    try {
-      const fileName = `vida_${Date.now()}.pdf`;
+    const fileName = `vida_${Date.now()}.pdf`;
 
-      const { error } = await supabase.storage
-        .from("pdfs")
-        .upload(fileName, pdfBuffer, {
-          contentType: "application/pdf",
-          upsert: true
-        });
+    const { error: uploadError } = await supabase.storage
+      .from("pdfs")
+      .upload(fileName, pdfBuffer, {
+        contentType: "application/pdf",
+        upsert: true
+      });
 
-      if (!error) {
-        const { data } = await supabase.storage
-          .from("pdfs")
-          .createSignedUrl(fileName, 300);
-
-        if (data?.signedUrl) {
-          return res.json({ ok: true, url: data.signedUrl });
-        }
-      }
-
-    } catch (e) {
-      console.log("Storage falló, se envía directo");
+    if (uploadError) {
+      console.error("Error subiendo PDF:", uploadError);
+      return res.json({ ok: false, msg: "Error subiendo PDF" });
     }
 
-    // fallback
-    res.setHeader("Content-Type", "application/pdf");
-    res.send(pdfBuffer);
+    const { data } = await supabase.storage
+      .from("pdfs")
+      .createSignedUrl(fileName, 300);
+
+    if (!data?.signedUrl) {
+      return res.json({ ok: false, msg: "No se pudo generar URL" });
+    }
+
+    // ===============================
+    // ✅ RESPUESTA FINAL
+    // ===============================
+    res.json({
+      ok: true,
+      url: data.signedUrl
+    });
 
   } catch (err) {
-  console.error("ERROR REAL PDF:", err);
-  res.json({ ok: false, msg: err.message });
+    console.error("🔥 ERROR REAL PDF:", err);
+    res.json({ ok: false, msg: err.message });
   }
 });
 

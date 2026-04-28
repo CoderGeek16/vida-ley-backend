@@ -1517,5 +1517,53 @@ async function generarPDF(){
   inputDni.classList.add("dni-only");
   cargarEstadoAcceso();
 </script>
+<div id="pdf-content" style="display:none; font-family: Arial; font-size:12px; padding:40px;">
+
+  <h3 style="text-align:center;">ANEXO</h3>
+  <h3 style="text-align:center;">FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS</h3>
+  <h3 style="text-align:center;">DEL SEGURO DE VIDA</h3>
+
+  <p style="text-align:center; font-size:11px;">
+    (Decreto Legislativo N° 688)
+  </p>
+
+  <p style="text-align:justify; font-size:11px;">
+    El/la suscrito(a) declara como beneficiarios del seguro de vida:
+  </p>
+
+  <table style="width:100%; border-collapse:collapse;">
+    <tr>
+      <td style="border:1px solid black; padding:6px;">
+        <b>Nombres:</b> <span id="pdf-nombre"></span>
+      </td>
+      <td style="border:1px solid black; padding:6px;">
+        <b>DNI:</b> <span id="pdf-dni"></span>
+      </td>
+    </tr>
+  </table>
+
+  <h4>Beneficiarios</h4>
+
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="border:1px solid black;">Nombre</th>
+        <th style="border:1px solid black;">DNI</th>
+        <th style="border:1px solid black;">Parentesco</th>
+        <th style="border:1px solid black;">Fecha</th>
+        <th style="border:1px solid black;">Domicilio</th>
+      </tr>
+    </thead>
+    <tbody id="pdf-tabla"></tbody>
+  </table>
+
+  <div style="margin-top:60px; text-align:center;">
+    _____________________________<br>
+    Firma del trabajador
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </body>
 </html>
