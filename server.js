@@ -193,37 +193,87 @@ app.post("/generar-pdf", async (req, res) => {
       }
     });
 
-    // ===============================
-    // 📄 FORMATO PDF
-    // ===============================
+// ===============================
+// 📄 FORMATO MINTRA REAL
+// ===============================
+
     doc.fontSize(12).font("Helvetica-Bold");
-    doc.text("DECLARACIÓN JURADA VIDA LEY", { align: "center" });
+    doc.text("ANEXO", { align: "center" });
+
+    doc.moveDown(0.5);
+
+    doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA", {
+      align: "center"
+    });
+
+    doc.moveDown(0.5);
+
+    doc.font("Helvetica").fontSize(10);
+    doc.text("(Decreto Legislativo N° 688 y sus normas modificatorias)", {
+      align: "center"
+    });
 
     doc.moveDown();
 
+    doc.text("El/la suscrito(a), formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida.");
+
+    doc.moveDown();
+
+    // DATOS TRABAJADOR
+    doc.font("Helvetica-Bold");
+    doc.text("Datos del trabajador:");
+
     doc.font("Helvetica");
-    doc.text(`Trabajador: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
+    doc.text(`Nombres y apellidos: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
     doc.text(`DNI: ${col.dni}`);
 
     doc.moveDown();
-    doc.text("BENEFICIARIOS:");
 
-    (beneficiarios || []).forEach(b => {
-      doc.text(`- ${b.nombres} ${b.apellido_paterno} (${b.dni})`);
-    });
+    // PRIMEROS
+    doc.font("Helvetica-Bold");
+    doc.text("Primeros Beneficiarios:");
 
+    doc.moveDown(0.5);
+
+    (beneficiarios || [])
+      .filter(b => b.tipo === "PRIMERO")
+      .forEach(b => {
+        doc.text(`• ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres} - DNI: ${b.dni}`);
+      });
+
+    doc.moveDown();
+
+    // SEGUNDOS
+    doc.font("Helvetica-Bold");
+    doc.text("A falta de los anteriores:");
+
+    doc.moveDown(0.5);
+
+    (beneficiarios || [])
+      .filter(b => b.tipo === "SEGUNDO")
+      .forEach(b => {
+        doc.text(`• ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres} - DNI: ${b.dni}`);
+      });
+
+    // FIRMA
     doc.moveDown(2);
 
-    doc.text("______________________________");
-    doc.text("Firma");
+    doc.text("______________________________", 200);
+    doc.text("Firma del trabajador", 210);
 
-    doc.end(); // 🔥 CLAVE
+    doc.moveDown();
+
+    const fecha = new Date();
+    doc.text(`Fecha: ${fecha.toLocaleDateString()}`, { align: "right" });
+  
+   doc.end();
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok:false });
   }
 });
+    
 
 // ===============================
 // 🔥 ADMIN
@@ -265,4 +315,5 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log("Servidor corriendo en " + PORT + " 🚀");
+  
 });
