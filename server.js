@@ -40,17 +40,17 @@ const supabase = createClient(
 );
 
 // ===============================
-// 🔐 AUTH (LOGIN REAL)
+// 🔐 AUTH
 // ===============================
 app.post("/auth/login", (req, res) => {
   const { password } = req.body;
 
   if (password === process.env.APP_ACCESS_PASSWORD) {
     res.cookie("admin", "true", {
-    httpOnly: true,
-    sameSite: "none", // 🔥 CAMBIO CLAVE
-    secure: true
-   });
+      httpOnly: true,
+      sameSite: "none",
+      secure: true
+    });
 
     return res.json({ ok: true });
   }
@@ -70,7 +70,7 @@ app.get("/auth/status", (req, res) => {
 });
 
 // ===============================
-// 🔐 PROTECCIÓN ADMIN
+// 🔐 PROTECCIÓN
 // ===============================
 function checkAdmin(req, res, next){
   if(req.cookies.admin !== "true"){
@@ -132,7 +132,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
       .insert([data]);
 
     if (error) {
-      console.error("ERROR INSERT:", error);
+      console.error(error);
       return res.json({ ok: false });
     }
 
@@ -172,20 +172,14 @@ app.post("/generar-pdf", async (req, res) => {
     doc.on("end", async () => {
       try {
         const pdfBuffer = Buffer.concat(buffers);
-
         const fileName = `vida_${Date.now()}.pdf`;
 
-        const { error: uploadError } = await supabase.storage
+        await supabase.storage
           .from("pdfs")
           .upload(fileName, pdfBuffer, {
             contentType: "application/pdf",
             upsert: true
           });
-
-        if (uploadError) {
-          console.error("ERROR STORAGE:", uploadError);
-          return res.status(500).json({ ok:false });
-        }
 
         const { data } = await supabase.storage
           .from("pdfs")
@@ -194,130 +188,45 @@ app.post("/generar-pdf", async (req, res) => {
         res.json({ ok:true, url:data.signedUrl });
 
       } catch (err) {
-        console.error("ERROR FINAL:", err);
+        console.error(err);
         res.status(500).json({ ok:false });
       }
     });
 
-    // CONTENIDO PDF
-   // ===============================
-// 📄 FORMATO MINTRA
-// ===============================
-
-doc.fontSize(12).font("Helvetica-Bold");
-doc.text("ANEXO", { align: "center" });
-
-doc.moveDown(0.5);
-
-doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA", {
-  align: "center"
-});
-
-doc.moveDown(0.5);
-
-doc.font("Helvetica").fontSize(10);
-doc.text("(Decreto Legislativo N° 688 y sus normas modificatorias)", {
-  align: "center"
-});
-
-doc.moveDown();
-
-// TEXTO LEGAL
-doc.text("El/la suscrito(a), formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida.");
-
-doc.moveDown();
-
-// DATOS TRABAJADOR
-doc.font("Helvetica-Bold");
-doc.text("Datos del trabajador:");
-
-doc.font("Helvetica");
-doc.text(`Nombres y apellidos: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
-doc.text(`DNI: ${col.dni}`);
-
-doc.moveDown();
-
-// ===============================
-// 🔵 PRIMEROS BENEFICIARIOS
-// ===============================
-doc.font("Helvetica-Bold");
-doc.text("Primeros Beneficiarios:");
-
-doc.moveDown(0.5);
-
-// CABECERA TABLA
-doc.fontSize(9).font("Helvetica-Bold");
-doc.text("Nombre completo", 40, doc.y, { width: 120 });
-doc.text("DNI", 160, doc.y - 10, { width: 60 });
-doc.text("Parentesco", 220, doc.y - 10, { width: 80 });
-doc.text("F. Nac", 300, doc.y - 10, { width: 80 });
-doc.text("Domicilio", 380, doc.y - 10, { width: 150 });
-
-doc.moveDown();
-
-// FILAS
-doc.font("Helvetica");
-
-(beneficiarios || [])
-  .filter(b => b.tipo === "PRIMERO")
-  .forEach(b => {
-    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, 40, doc.y, { width: 120 });
-    doc.text(b.dni || "", 160, doc.y - 10, { width: 60 });
-    doc.text(b.id_parentesco || "", 220, doc.y - 10, { width: 80 });
-    doc.text(b.fecha_nacimiento || "", 300, doc.y - 10, { width: 80 });
-    doc.text(b.domicilio || "", 380, doc.y - 10, { width: 150 });
+    // ===============================
+    // 📄 FORMATO PDF
+    // ===============================
+    doc.fontSize(12).font("Helvetica-Bold");
+    doc.text("DECLARACIÓN JURADA VIDA LEY", { align: "center" });
 
     doc.moveDown();
-  });
 
-doc.moveDown();
-
-// ===============================
-// 🟠 SEGUNDOS BENEFICIARIOS
-// ===============================
-doc.font("Helvetica-Bold");
-doc.text("Solo a falta de los primeros beneficiarios:");
-
-doc.moveDown(0.5);
-
-doc.fontSize(9).font("Helvetica-Bold");
-doc.text("Nombre completo", 40, doc.y, { width: 120 });
-doc.text("DNI", 160, doc.y - 10, { width: 60 });
-doc.text("Parentesco", 220, doc.y - 10, { width: 80 });
-doc.text("F. Nac", 300, doc.y - 10, { width: 80 });
-doc.text("Domicilio", 380, doc.y - 10, { width: 150 });
-
-doc.moveDown();
-
-doc.font("Helvetica");
-
-(beneficiarios || [])
-  .filter(b => b.tipo === "SEGUNDO")
-  .forEach(b => {
-    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, 40, doc.y, { width: 120 });
-    doc.text(b.dni || "", 160, doc.y - 10, { width: 60 });
-    doc.text(b.id_parentesco || "", 220, doc.y - 10, { width: 80 });
-    doc.text(b.fecha_nacimiento || "", 300, doc.y - 10, { width: 80 });
-    doc.text(b.domicilio || "", 380, doc.y - 10, { width: 150 });
+    doc.font("Helvetica");
+    doc.text(`Trabajador: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
+    doc.text(`DNI: ${col.dni}`);
 
     doc.moveDown();
-  });
+    doc.text("BENEFICIARIOS:");
+
+    (beneficiarios || []).forEach(b => {
+      doc.text(`- ${b.nombres} ${b.apellido_paterno} (${b.dni})`);
+    });
+
+    doc.moveDown(2);
+
+    doc.text("______________________________");
+    doc.text("Firma");
+
+    doc.end(); // 🔥 CLAVE
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok:false });
+  }
+});
 
 // ===============================
-// ✍ FIRMA
-// ===============================
-doc.moveDown(2);
-
-doc.text("______________________________", 200);
-doc.text("Firma del trabajador(a)", 210);
-
-doc.moveDown();
-
-const fecha = new Date();
-doc.text(`Fecha: ${fecha.toLocaleDateString()}`, { align: "right" });
-
-// ===============================
-// 🔥 ADMIN (PROTEGIDO)
+// 🔥 ADMIN
 // ===============================
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase
@@ -341,7 +250,6 @@ app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
     .eq("id_colaborador", req.params.id);
 
   res.json({ ok:true, colaborador:col, beneficiarios:ben });
-
 });
 
 app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
