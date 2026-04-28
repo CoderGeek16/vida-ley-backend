@@ -194,110 +194,176 @@ app.post("/generar-pdf", async (req, res) => {
     });
 
 // ===============================
-// 📄 PDF FORMATO PROFESIONAL MINTRA
+// 🇵🇪 PDF FORMATO SUNAFIL REAL
 // ===============================
 
-// ENCABEZADO
-doc.font("Helvetica-Bold").fontSize(13);
-doc.text("DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA", {
-  align: "center"
-});
-
-doc.moveDown(0.3);
-
-doc.font("Helvetica").fontSize(10);
-doc.text("(Decreto Legislativo N° 688)", { align: "center" });
-
-doc.moveDown(1.5);
-
-// DATOS TRABAJADOR
+// ANEXO
 doc.font("Helvetica-Bold").fontSize(11);
-doc.text("1. DATOS DEL TRABAJADOR");
+doc.text("ANEXO", { align: "center" });
 
 doc.moveDown(0.5);
 
-doc.font("Helvetica").fontSize(10);
-doc.text(`Apellidos y Nombres: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
-doc.text(`DNI: ${col.dni}`);
+// TITULO
+doc.fontSize(11);
+doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS", { align: "center" });
+doc.text("DEL SEGURO DE VIDA", { align: "center" });
+
+doc.moveDown(0.3);
+
+doc.font("Helvetica").fontSize(9);
+doc.text("(Decreto Legislativo N° 688 y sus normas modificatorias, complementarias y reglamentarias)", {
+  align: "center"
+});
+
+doc.moveDown(1);
+
+// TEXTO LEGAL
+doc.text(
+  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688, Ley de Consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de fallecimiento a consecuencia de un accidente.",
+  { align: "justify" }
+);
 
 doc.moveDown(1);
 
 // ===============================
-// 🟦 TABLA BENEFICIARIOS
+// 📦 CUADRO DATOS
 // ===============================
-doc.font("Helvetica-Bold");
-doc.text("2. BENEFICIARIOS");
+let y = doc.y;
+
+doc.rect(40, y, 520, 20).stroke();
+doc.text(
+  `Nombres y apellidos del trabajador(a) asegurado(a): ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}     DNI: ${col.dni}`,
+  45,
+  y + 5
+);
+
+y += 20;
+
+doc.rect(40, y, 520, 20).stroke();
+doc.text(
+  `Nombre o razón social del empleador: ${col.empleador || ""}`,
+  45,
+  y + 5
+);
+
+y += 30;
+
+// ===============================
+// 🔵 PRIMEROS BENEFICIARIOS
+// ===============================
+doc.font("Helvetica-Bold").fontSize(10);
+doc.text("Primeros Beneficiarios:");
+
+doc.font("Helvetica").fontSize(9);
+doc.text("Cónyuge o conviviente y descendientes (*) (**)");
 
 doc.moveDown(0.5);
 
 // TABLA HEADER
 const startX = 40;
-let y = doc.y;
+let rowY = doc.y;
 
-doc.rect(startX, y, 520, 20).stroke();
+doc.rect(startX, rowY, 520, 20).stroke();
 
-doc.fontSize(9).text("N°", startX + 5, y + 5);
-doc.text("APELLIDOS Y NOMBRES", startX + 30, y + 5);
-doc.text("DNI", startX + 300, y + 5);
-doc.text("TIPO", startX + 380, y + 5);
+doc.text("Nombre y apellidos", startX + 5, rowY + 5);
+doc.text("DNI", startX + 200, rowY + 5);
+doc.text("Parentesco", startX + 260, rowY + 5);
+doc.text("Fecha Nac.", startX + 350, rowY + 5);
+doc.text("Domicilio", startX + 440, rowY + 5);
 
-y += 20;
+rowY += 20;
 
 // FILAS
-let i = 1;
+(beneficiarios || [])
+  .filter(b => b.tipo === "PRIMERO")
+  .forEach(b => {
 
-(beneficiarios || []).forEach(b => {
+    doc.rect(startX, rowY, 520, 20).stroke();
 
-  doc.rect(startX, y, 520, 20).stroke();
+    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, startX + 5, rowY + 5, { width: 180 });
+    doc.text(b.dni, startX + 200, rowY + 5);
+    doc.text(b.id_parentesco || "", startX + 260, rowY + 5);
+    doc.text(b.fecha_nacimiento || "", startX + 350, rowY + 5);
+    doc.text(b.domicilio || "", startX + 440, rowY + 5, { width: 80 });
 
-  doc.text(i, startX + 5, y + 5);
+    rowY += 20;
+  });
 
-  doc.text(
-    `${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`,
-    startX + 30,
-    y + 5,
-    { width: 250 }
-  );
+// NOTAS
+doc.moveDown(0.5);
+doc.fontSize(8);
+doc.text("(*) A falta de cónyuge, se puede nombrar conviviente (mínimo 2 años).");
+doc.text("(**) Descendientes: hijos o nietos según Código Civil.");
 
-  doc.text(b.dni, startX + 300, y + 5);
-
-  doc.text(
-    b.tipo === "PRIMERO" ? "PRIMERO" : "SECUNDARIO",
-    startX + 380,
-    y + 5
-  );
-
-  y += 20;
-  i++;
-});
+doc.moveDown(1);
 
 // ===============================
-// ✍ DECLARACIÓN
+// 🔵 SEGUNDOS BENEFICIARIOS
 // ===============================
-doc.moveDown(2);
+doc.font("Helvetica-Bold").fontSize(10);
+doc.text("Solo a falta de los Primeros Beneficiarios:");
 
-doc.font("Helvetica").fontSize(10);
-doc.text(
-  "Declaro bajo juramento que la información proporcionada es veraz y autorizo su uso para los fines del seguro de vida ley.",
-  {
-    align: "justify"
-  }
-);
+doc.font("Helvetica").fontSize(9);
+doc.text("Ascendientes y hermanos menores de dieciocho (18) años (***)");
+
+doc.moveDown(0.5);
+
+// TABLA HEADER
+rowY = doc.y;
+
+doc.rect(startX, rowY, 520, 20).stroke();
+
+doc.text("Nombre y apellidos", startX + 5, rowY + 5);
+doc.text("DNI", startX + 200, rowY + 5);
+doc.text("Parentesco", startX + 260, rowY + 5);
+doc.text("Fecha Nac.", startX + 350, rowY + 5);
+doc.text("Domicilio", startX + 440, rowY + 5);
+
+rowY += 20;
+
+// FILAS
+(beneficiarios || [])
+  .filter(b => b.tipo === "SEGUNDO")
+  .forEach(b => {
+
+    doc.rect(startX, rowY, 520, 20).stroke();
+
+    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, startX + 5, rowY + 5, { width: 180 });
+    doc.text(b.dni, startX + 200, rowY + 5);
+    doc.text(b.id_parentesco || "", startX + 260, rowY + 5);
+    doc.text(b.fecha_nacimiento || "", startX + 350, rowY + 5);
+    doc.text(b.domicilio || "", startX + 440, rowY + 5, { width: 80 });
+
+    rowY += 20;
+  });
+
+// NOTA
+doc.moveDown(0.5);
+doc.fontSize(8);
+doc.text("(***) Ascendientes: padres o abuelos según Código Civil.");
+
 
 // ===============================
 // ✍ FIRMA
 // ===============================
-doc.moveDown(3);
+doc.moveDown(2);
 
+doc.fontSize(10);
 doc.text("______________________________", 200);
-doc.text("Firma del trabajador", 210);
+doc.text("Firma del trabajador(a) asegurado(a)", 190);
 
-doc.moveDown();
+doc.moveDown(0.5);
+doc.fontSize(8);
+doc.text("(Legalizada notarialmente o por Juez de Paz)", 190);
 
+doc.moveDown(1);
+
+// FECHA
 const fecha = new Date();
-doc.text(`Fecha: ${fecha.toLocaleDateString()}`, {
-  align: "right"
-});
+doc.text(
+  `Lima, ${fecha.getDate()} de ${fecha.toLocaleString('es-ES', { month: 'long' })} del ${fecha.getFullYear()}`,
+  { align: "right" }
+);
 
    doc.end();
 
