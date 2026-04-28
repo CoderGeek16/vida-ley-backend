@@ -194,30 +194,78 @@ app.post("/generar-pdf", async (req, res) => {
     });
 
 // ===============================
-// 🇵🇪 PDF FORMATO SUNAFIL REAL
+// 🇵🇪 PDF SUNAFIL (CORREGIDO)
 // ===============================
 
-// ANEXO
+// Config base
+doc.font("Helvetica");
+const MARGIN = 40;
+const TABLE_X = 40;
+const TABLE_W = 520;
+const ROW_H = 20;
+
+// util: salto de página seguro
+function ensureSpace(heightNeeded = 0) {
+  if (doc.y + heightNeeded > doc.page.height - MARGIN) {
+    doc.addPage();
+    doc.y = MARGIN;
+  }
+}
+
+// util: header de tabla
+function drawTableHeader(y) {
+  doc.rect(TABLE_X, y, TABLE_W, ROW_H).stroke();
+  doc.font("Helvetica-Bold").fontSize(9);
+  doc.text("Nombre y apellidos", TABLE_X + 5, y + 5, { width: 190 });
+  doc.text("DNI", TABLE_X + 200, y + 5);
+  doc.text("Parentesco", TABLE_X + 260, y + 5);
+  doc.text("Fecha Nac.", TABLE_X + 350, y + 5);
+  doc.text("Domicilio", TABLE_X + 440, y + 5, { width: 70 });
+  doc.font("Helvetica");
+}
+
+// util: fila de tabla
+function drawRow(y, b) {
+  doc.rect(TABLE_X, y, TABLE_W, ROW_H).stroke();
+
+  const nombre = `${b.apellido_paterno || ""} ${b.apellido_materno || ""}, ${b.nombres || ""}`.trim();
+
+  doc.fontSize(9);
+  doc.text(nombre, TABLE_X + 5, y + 5, { width: 190 });
+  doc.text(b.dni || "", TABLE_X + 200, y + 5);
+  doc.text(b.id_parentesco || "", TABLE_X + 260, y + 5);
+  doc.text(b.fecha_nacimiento || "", TABLE_X + 350, y + 5);
+  doc.text(b.domicilio || "", TABLE_X + 440, y + 5, { width: 70 });
+}
+
+// ===============================
+// ENCABEZADO
+// ===============================
 doc.font("Helvetica-Bold").fontSize(11);
 doc.text("ANEXO", { align: "center" });
 
-doc.moveDown(0.5);
+doc.moveDown(0.4);
 
-// TITULO
-doc.fontSize(11);
-doc.text("FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS", { align: "center" });
+doc.text(
+  "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS",
+  { align: "center" }
+);
 doc.text("DEL SEGURO DE VIDA", { align: "center" });
 
 doc.moveDown(0.3);
 
 doc.font("Helvetica").fontSize(9);
-doc.text("(Decreto Legislativo N° 688 y sus normas modificatorias, complementarias y reglamentarias)", {
-  align: "center"
-});
+doc.text(
+  "(Decreto Legislativo N° 688 y sus normas modificatorias, complementarias y reglamentarias)",
+  { align: "center" }
+);
 
 doc.moveDown(1);
 
+// ===============================
 // TEXTO LEGAL
+// ===============================
+doc.fontSize(9);
 doc.text(
   "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688, Ley de Consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de fallecimiento a consecuencia de un accidente.",
   { align: "justify" }
@@ -226,31 +274,33 @@ doc.text(
 doc.moveDown(1);
 
 // ===============================
-// 📦 CUADRO DATOS
+// CUADRO DATOS
 // ===============================
+ensureSpace(50);
 let y = doc.y;
 
-doc.rect(40, y, 520, 20).stroke();
+doc.rect(TABLE_X, y, TABLE_W, ROW_H).stroke();
 doc.text(
   `Nombres y apellidos del trabajador(a) asegurado(a): ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}     DNI: ${col.dni}`,
-  45,
+  TABLE_X + 5,
   y + 5
 );
 
-y += 20;
+y += ROW_H;
 
-doc.rect(40, y, 520, 20).stroke();
+doc.rect(TABLE_X, y, TABLE_W, ROW_H).stroke();
 doc.text(
   `Nombre o razón social del empleador: ${col.empleador || ""}`,
-  45,
+  TABLE_X + 5,
   y + 5
 );
 
-y += 30;
+doc.y = y + ROW_H + 10;
 
 // ===============================
-// 🔵 PRIMEROS BENEFICIARIOS
+// PRIMEROS BENEFICIARIOS
 // ===============================
+ensureSpace(40);
 doc.font("Helvetica-Bold").fontSize(10);
 doc.text("Primeros Beneficiarios:");
 
@@ -259,47 +309,53 @@ doc.text("Cónyuge o conviviente y descendientes (*) (**)");
 
 doc.moveDown(0.5);
 
-// TABLA HEADER
-const startX = 40;
+// header
 let rowY = doc.y;
+drawTableHeader(rowY);
+rowY += ROW_H;
 
-doc.rect(startX, rowY, 520, 20).stroke();
+// filas
+const primeros = (beneficiarios || []).filter(b => b.tipo === "PRIMERO");
 
-doc.text("Nombre y apellidos", startX + 5, rowY + 5);
-doc.text("DNI", startX + 200, rowY + 5);
-doc.text("Parentesco", startX + 260, rowY + 5);
-doc.text("Fecha Nac.", startX + 350, rowY + 5);
-doc.text("Domicilio", startX + 440, rowY + 5);
-
-rowY += 20;
-
-// FILAS
-(beneficiarios || [])
-  .filter(b => b.tipo === "PRIMERO")
-  .forEach(b => {
-
-    doc.rect(startX, rowY, 520, 20).stroke();
-
-    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, startX + 5, rowY + 5, { width: 180 });
-    doc.text(b.dni, startX + 200, rowY + 5);
-    doc.text(b.id_parentesco || "", startX + 260, rowY + 5);
-    doc.text(b.fecha_nacimiento || "", startX + 350, rowY + 5);
-    doc.text(b.domicilio || "", startX + 440, rowY + 5, { width: 80 });
-
-    rowY += 20;
+if (primeros.length === 0) {
+  // filas vacías (para que se vea como formato)
+  for (let i = 0; i < 3; i++) {
+    ensureSpace(ROW_H);
+    doc.rect(TABLE_X, rowY, TABLE_W, ROW_H).stroke();
+    rowY += ROW_H;
+  }
+} else {
+  primeros.forEach(b => {
+    ensureSpace(ROW_H);
+    drawRow(rowY, b);
+    rowY += ROW_H;
   });
+}
 
-// NOTAS
-doc.moveDown(0.5);
+doc.y = rowY;
+
+// notas a la derecha (estilo SUNAFIL)
+const notesY = doc.y - 70;
 doc.fontSize(8);
-doc.text("(*) A falta de cónyuge, se puede nombrar conviviente (mínimo 2 años).");
-doc.text("(**) Descendientes: hijos o nietos según Código Civil.");
+doc.text(
+  "(*) A falta de cónyuge, se puede nombrar conviviente (mínimo 2 años).",
+  360,
+  notesY,
+  { width: 200 }
+);
+doc.text(
+  "(**) Descendientes: hijos o nietos según Código Civil.",
+  360,
+  notesY + 20,
+  { width: 200 }
+);
 
-doc.moveDown(1);
+doc.moveDown(1.5);
 
 // ===============================
-// 🔵 SEGUNDOS BENEFICIARIOS
+// SEGUNDOS BENEFICIARIOS
 // ===============================
+ensureSpace(40);
 doc.font("Helvetica-Bold").fontSize(10);
 doc.text("Solo a falta de los Primeros Beneficiarios:");
 
@@ -308,62 +364,66 @@ doc.text("Ascendientes y hermanos menores de dieciocho (18) años (***)");
 
 doc.moveDown(0.5);
 
-// TABLA HEADER
+// header
 rowY = doc.y;
+drawTableHeader(rowY);
+rowY += ROW_H;
 
-doc.rect(startX, rowY, 520, 20).stroke();
+// filas
+const segundos = (beneficiarios || []).filter(b => b.tipo === "SEGUNDO");
 
-doc.text("Nombre y apellidos", startX + 5, rowY + 5);
-doc.text("DNI", startX + 200, rowY + 5);
-doc.text("Parentesco", startX + 260, rowY + 5);
-doc.text("Fecha Nac.", startX + 350, rowY + 5);
-doc.text("Domicilio", startX + 440, rowY + 5);
-
-rowY += 20;
-
-// FILAS
-(beneficiarios || [])
-  .filter(b => b.tipo === "SEGUNDO")
-  .forEach(b => {
-
-    doc.rect(startX, rowY, 520, 20).stroke();
-
-    doc.text(`${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`, startX + 5, rowY + 5, { width: 180 });
-    doc.text(b.dni, startX + 200, rowY + 5);
-    doc.text(b.id_parentesco || "", startX + 260, rowY + 5);
-    doc.text(b.fecha_nacimiento || "", startX + 350, rowY + 5);
-    doc.text(b.domicilio || "", startX + 440, rowY + 5, { width: 80 });
-
-    rowY += 20;
+if (segundos.length === 0) {
+  for (let i = 0; i < 3; i++) {
+    ensureSpace(ROW_H);
+    doc.rect(TABLE_X, rowY, TABLE_W, ROW_H).stroke();
+    rowY += ROW_H;
+  }
+} else {
+  segundos.forEach(b => {
+    ensureSpace(ROW_H);
+    drawRow(rowY, b);
+    rowY += ROW_H;
   });
+}
 
-// NOTA
-doc.moveDown(0.5);
+doc.y = rowY;
+
+// nota (***) a la derecha
+doc.moveDown(0.3);
 doc.fontSize(8);
-doc.text("(***) Ascendientes: padres o abuelos según Código Civil.");
-
+doc.text(
+  "(***) Ascendientes: padres o abuelos según Código Civil.",
+  360,
+  doc.y - 10,
+  { width: 200 }
+);
 
 // ===============================
-// ✍ FIRMA
+// FIRMA
 // ===============================
 doc.moveDown(2);
-
 doc.fontSize(10);
-doc.text("______________________________", 200);
-doc.text("Firma del trabajador(a) asegurado(a)", 190);
+
+doc.text("______________________________", { align: "center" });
+doc.text("Firma del trabajador(a) asegurado(a)", { align: "center" });
 
 doc.moveDown(0.5);
 doc.fontSize(8);
-doc.text("(Legalizada notarialmente o por Juez de Paz)", 190);
+doc.text("(Legalizada notarialmente o por Juez de Paz)", { align: "center" });
 
+// ===============================
+// FECHA
+// ===============================
 doc.moveDown(1);
 
-// FECHA
 const fecha = new Date();
-doc.text(
-  `Lima, ${fecha.getDate()} de ${fecha.toLocaleString('es-ES', { month: 'long' })} del ${fecha.getFullYear()}`,
-  { align: "right" }
-);
+const dia = fecha.getDate();
+const mes = fecha.toLocaleString("es-ES", { month: "long" });
+const anio = fecha.getFullYear();
+
+doc.fontSize(9);
+doc.text(`Lima, ${dia} de ${mes} del ${anio}`, { align: "right" });
+
 
    doc.end();
 
