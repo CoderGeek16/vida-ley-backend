@@ -380,7 +380,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
   }
 });
 
-app.poapp.post("/generar-pdf", async (req, res) => {
+  app.post("/generar-pdf", async (req, res) => {
   try {
     const { id_colaborador, session_id } = req.body;
 
