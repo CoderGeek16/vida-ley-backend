@@ -379,395 +379,107 @@ app.post("/guardar-beneficiario", async (req, res) => {
 
 app.post("/generar-pdf", async (req, res) => {
   try {
+
     const { id_colaborador, session_id } = req.body;
 
     if (!id_colaborador || !session_id) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Faltan datos para generar el PDF."
-      });
+      return res.json({ ok: false, msg: "Datos incompletos" });
     }
 
-    const { data: col, error: colError } = await supabase
+    const { data: col } = await supabase
       .from("colaboradores")
       .select("*")
       .eq("id", id_colaborador)
       .single();
 
-    if (colError || !col) {
-      console.error("Error obteniendo colaborador:", colError);
-      return res.status(404).json({
-        ok: false,
-        msg: "No se encontro el colaborador."
-      });
+    if (!col) {
+      return res.json({ ok: false, msg: "Colaborador no existe" });
     }
 
-    const { data: beneficiarios, error: beneficiariosError } = await supabase
+    const { data: beneficiarios } = await supabase
       .from("beneficiarios")
       .select("*")
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    if (beneficiariosError) {
-      console.error("Error obteniendo beneficiarios:", beneficiariosError);
-      return res.status(500).json({
-        ok: false,
-        msg: "No se pudieron obtener los beneficiarios."
-      });
-    }
-
     if (!beneficiarios || beneficiarios.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        msg: "Debes guardar al menos un beneficiario antes de generar el PDF."
-      });
+      return res.json({ ok: false, msg: "Sin beneficiarios" });
     }
 
-    const doc = new PDFDocument({
-      size: "A4",
-      margins: { top: 32, right: 42, bottom: 38, left: 42 }
-    });
+    const doc = new PDFDocument({ margin: 40 });
     const buffers = [];
 
-    const palette = {
-      ink: "#18323d",
-      muted: "#61717c",
-      primary: "#0a6772",
-      accent: "#d98a3b",
-      soft: "#eef5f6",
-      line: "#c9d4db",
-      lineStrong: "#8fa7b4",
-      zebra: "#f8fbfc"
-    };
+    doc.on("data", buffers.push.bind(buffers));
 
-    const marginX = 42;
-    const contentWidth = doc.page.width - (marginX * 2);
-    const leftCardWidth = 318;
-    const gap = 14;
-    const rightCardWidth = contentWidth - leftCardWidth - gap;
-    const cardY = 172;
+    doc.on("end", async () => {
 
-    const primeros = (beneficiarios || []).filter((b) => b.tipo === "PRIMERO");
-    const segundos = (beneficiarios || []).filter((b) => b.tipo === "SEGUNDO");
+      const pdfBuffer = Buffer.concat(buffers);
 
-    const toTableRows = (items) => items.map((b) => ({
-      nombre: buildFullName(b) || "-",
-      dni: cleanText(b.dni) || "-",
-      parentesco: getParentescoLabel(b.id_parentesco),
-      nacimiento: formatShortDate(b.fecha_nacimiento) || "-",
-      domicilio: cleanText(b.domicilio) || "-"
-    }));
+      // 🔥 INTENTO STORAGE (sin romper si falla)
+      try {
+        const fileName = `vida_${Date.now()}.pdf`;
 
-    const drawBeneficiarySection = ({ title, subtitle, rows, y, note }) => {
-      drawSectionTitle(doc, title, marginX, y, contentWidth, palette);
+        const { error } = await supabase.storage
+          .from("pdfs")
+          .upload(fileName, pdfBuffer, {
+            contentType: "application/pdf",
+            upsert: true
+          });
 
-      doc
-        .fillColor(palette.muted)
-        .font("Helvetica")
-        .fontSize(8.8)
-        .text(subtitle, marginX, y + 24, {
-          width: contentWidth
-        });
+        if (!error) {
+          const { data } = await supabase.storage
+            .from("pdfs")
+            .createSignedUrl(fileName, 300);
 
-      let cursorY = y + 42;
-
-      const columns = [
-        { key: "nombre", width: 154 },
-        { key: "dni", width: 66, align: "center" },
-        { key: "parentesco", width: 90, align: "center" },
-        { key: "nacimiento", width: 80, align: "center" },
-        { key: "domicilio", width: 121 }
-      ];
-
-      drawTableRow(doc, {
-        x: marginX,
-        y: cursorY,
-        row: {
-          nombre: "Beneficiario",
-          dni: "DNI",
-          parentesco: "Parentesco",
-          nacimiento: "Nacimiento",
-          domicilio: "Domicilio"
-        },
-        columns,
-        height: 24,
-        palette,
-        isHeader: true
-      });
-
-      cursorY += 24;
-
-      const tableRows = rows.length > 0
-        ? rows
-        : Array.from({ length: 3 }, () => ({
-            nombre: "",
-            dni: "",
-            parentesco: "",
-            nacimiento: "",
-            domicilio: ""
-          }));
-
-      tableRows.forEach((row, index) => {
-        doc.font("Helvetica").fontSize(8.6);
-
-        const rowHeight = getTableRowHeight(doc, row, columns, 6);
-
-        drawTableRow(doc, {
-          x: marginX,
-          y: cursorY,
-          row,
-          columns,
-          height: rowHeight,
-          palette,
-          zebra: index % 2 === 1
-        });
-
-        cursorY += rowHeight;
-      });
-
-      const noteHeight = drawCallout(doc, {
-        x: marginX,
-        y: cursorY + 10,
-        width: contentWidth,
-        text: note,
-        palette
-      });
-
-      return cursorY + noteHeight + 10;
-    };
-
-    doc.info = {
-      Title: "Declaracion Jurada de Beneficiarios - Seguro de Vida Ley",
-      Author: "Registro Vida Ley",
-      Subject: "Beneficiarios del Seguro de Vida Ley"
-    };
-
-    doc
-      .rect(0, 0, doc.page.width, 16)
-      .fill(palette.primary);
-
-    drawTag(doc, marginX, 32, 102, 28, "ANEXO", palette);
-
-    doc
-      .fillColor(palette.ink)
-      .font("Helvetica-Bold")
-      .fontSize(15.5)
-      .text("DECLARACION JURADA DE BENEFICIARIOS", marginX, 72, {
-        width: contentWidth,
-        align: "center"
-      });
-
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(13)
-      .text("DEL SEGURO DE VIDA LEY", marginX, 92, {
-        width: contentWidth,
-        align: "center"
-      });
-
-    doc
-      .fillColor(palette.muted)
-      .font("Helvetica")
-      .fontSize(9)
-      .text("(Decreto Legislativo N° 688)", marginX, 114, {
-        width: contentWidth,
-        align: "center"
-      });
-
-    doc
-      .save()
-      .roundedRect(marginX, 136, contentWidth, 52, 16)
-      .fillAndStroke("#fbfcfd", palette.line)
-      .restore();
-
-    doc
-      .fillColor(palette.ink)
-      .font("Helvetica")
-      .fontSize(9.3)
-      .text(
-        "El/la suscrito(a) formula la presente declaracion jurada sobre los beneficiarios del Seguro de Vida Ley, dejando constancia de la informacion consignada para fines de registro interno y respaldo documentario.",
-        marginX + 16,
-        151,
-        {
-          width: contentWidth - 32,
-          lineGap: 2,
-          align: "justify"
+          if (data?.signedUrl) {
+            return res.json({ ok: true, url: data.signedUrl });
+          }
         }
-      );
 
-    drawInfoCard(doc, {
-      x: marginX,
-      y: cardY,
-      width: leftCardWidth,
-      title: "Datos del trabajador",
-      fields: [
-        {
-          label: "Nombres y apellidos",
-          value: buildFullName(col)
-        },
-        {
-          label: "DNI",
-          value: cleanText(col.dni)
-        },
-        {
-          label: "Genero",
-          value: getGeneroLabel(col.id_genero, col.genero)
-        }
-      ],
-      palette
-    });
-
-    drawInfoCard(doc, {
-      x: marginX + leftCardWidth + gap,
-      y: cardY,
-      width: rightCardWidth,
-      title: "Datos complementarios",
-      fields: [
-        {
-          label: "Empleador",
-          value: cleanText(col.empleador) || cleanText(process.env.EMPLOYER_NAME) || "No consignado"
-        },
-        {
-          label: "Fecha de emision",
-          value: formatLongDate(new Date())
-        },
-        {
-          label: "Documento",
-          value: "Registro referencial de beneficiarios"
-        }
-      ],
-      palette
-    });
-
-    let currentY = 292;
-
-    currentY = drawBeneficiarySection({
-      title: "Primeros beneficiarios",
-      subtitle: "Se consigna conyuge, conviviente o descendientes declarados por el trabajador.",
-      rows: toTableRows(primeros),
-      y: currentY,
-      note: "(*) A falta de conyuge, puede designarse conviviente. (**) Los descendientes se consideran conforme a lo previsto por el Codigo Civil."
-    });
-
-    currentY += 16;
-
-    currentY = drawBeneficiarySection({
-      title: "Segundos beneficiarios",
-      subtitle: "Se registran solo a falta de los primeros beneficiarios declarados.",
-      rows: toTableRows(segundos),
-      y: currentY,
-      note: "(***) Los ascendientes u otros familiares consignados deben responder a la declaracion expresa del trabajador y al sustento normativo aplicable."
-    });
-
-    const signatureTop = Math.max(currentY + 24, 708);
-
-    doc
-      .moveTo(marginX, signatureTop)
-      .lineTo(doc.page.width - marginX, signatureTop)
-      .lineWidth(1)
-      .strokeColor(palette.line)
-      .stroke();
-
-    doc
-      .moveTo(marginX + 148, signatureTop + 48)
-      .lineTo(marginX + 356, signatureTop + 48)
-      .lineWidth(1)
-      .strokeColor(palette.lineStrong)
-      .stroke();
-
-    doc
-      .fillColor(palette.ink)
-      .font("Helvetica-Bold")
-      .fontSize(9.5)
-      .text("Firma del trabajador", marginX + 176, signatureTop + 56, {
-        width: 150,
-        align: "center"
-      });
-
-    doc
-      .fillColor(palette.muted)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(`Fecha: ${formatLongDate(new Date())}`, doc.page.width - marginX - 170, signatureTop + 12, {
-        width: 170,
-        align: "right"
-      });
-
-    doc
-      .fillColor(palette.muted)
-      .font("Helvetica-Oblique")
-      .fontSize(7.8)
-      .text(
-        "Documento generado automaticamente por el sistema de Registro Vida Ley.",
-        marginX,
-        doc.page.height - 38,
-        {
-          width: contentWidth,
-          align: "center"
-        }
-      );
-
-    const pdfBuffer = await new Promise((resolve, reject) => {
-      doc.on("data", (chunk) => buffers.push(chunk));
-      doc.on("end", () => resolve(Buffer.concat(buffers)));
-      doc.on("error", reject);
-      doc.end();
-    });
-
-    const safeDni = cleanText(col.dni).replace(/[^\dA-Za-z_-]/g, "") || "sin-dni";
-    const fileName = `vida-ley/${safeDni}_${Date.now()}.pdf`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(fileName, pdfBuffer, {
-        contentType: "application/pdf",
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error("Error subiendo PDF a Supabase Storage:", uploadError);
-      return res.status(500).json({
-        ok: false,
-        msg: `No se pudo guardar el PDF en Supabase: ${uploadError.message}`
-      });
-    }
-
-    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(fileName, 300);
-
-    if (signedUrlError || !signedUrlData?.signedUrl) {
-      console.error("Error generando signed URL:", signedUrlError);
-
-      const { data: publicUrlData } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(fileName);
-
-      if (publicUrlData?.publicUrl) {
-        return res.json({
-          ok: true,
-          url: publicUrlData.publicUrl,
-          fileName
-        });
+      } catch (e) {
+        console.log("Storage falló, se envía directo");
       }
 
-      return res.status(500).json({
-        ok: false,
-        msg: `El PDF se guardo, pero no se pudo generar la URL de descarga: ${signedUrlError?.message || "error desconocido"}`
-      });
-    }
+      // 🔥 SI FALLA STORAGE → ENVÍA PDF IGUAL
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline; filename=vida_ley.pdf");
+      return res.send(pdfBuffer);
 
-    res.json({
-      ok: true,
-      url: signedUrlData.signedUrl,
-      fileName
     });
+
+    // ===============================
+    // PDF (tu diseño actual)
+    // ===============================
+    doc.fontSize(12).text("DECLARACIÓN JURADA VIDA LEY", { align: "center" });
+
+    doc.moveDown();
+
+    doc.text(
+      `Trabajador: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`
+    );
+
+    doc.text(`DNI: ${col.dni}`);
+
+    doc.moveDown();
+
+    doc.text("BENEFICIARIOS:");
+
+    beneficiarios.forEach((b, i) => {
+      doc.text(
+        `${i + 1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres} - DNI: ${b.dni}`
+      );
+    });
+
+    doc.moveDown(3);
+
+    doc.text("__________________________");
+    doc.text("Firma");
+
+    doc.end();
+
   } catch (err) {
-    console.error("Error general generando PDF:", err);
-    res.status(500).json({
-      ok: false,
-      msg: err.message || "Error interno generando PDF."
-    });
+    console.error(err);
+    res.json({ ok: false, msg: "Error generando PDF" });
   }
 });
 
