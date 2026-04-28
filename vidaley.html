@@ -987,7 +987,7 @@
       return "http://localhost:3000";
     }
 
-    return "https://vida-ley-backend.onrender.com";
+    return "/api";
   }
 
   const API = resolveApiBase();
@@ -1397,7 +1397,7 @@ async function generarPDF(){
 
   try{
 
-  const r = await apiFetch("/generar-pdf", {
+    const r = await apiFetch("/generar-pdf", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -1408,17 +1408,17 @@ async function generarPDF(){
     })
   });
 
-  const res = await leerJSON(r);
+    const res = await leerJSON(r);
 
-  if (!r.ok || !res.ok) {
-    pdfFeedback.innerText = res.msg || "No se pudo generar el PDF.";
-    alert(res.msg || "Error generando PDF");
-    return;
-  }
+    if(!r.ok || !res.ok){
+      pdfFeedback.innerText = res.msg || "No se pudo generar el PDF.";
+      alert(res.msg || "Error generando PDF");
+      return;
+    }
 
   // 👉 abrir PDF guardado
-  pdfFeedback.innerText = "PDF generado y guardado correctamente.";
-  window.open(res.url, "_blank");
+    pdfFeedback.innerText = "PDF generado y guardado correctamente.";
+    window.open(res.url, "_blank");
   }catch(error){
     pdfFeedback.innerText = "No se pudo conectar con el servidor.";
     alert("No se pudo conectar con el servidor para generar el PDF.");

@@ -1,0 +1,8 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://vida-ley-backend.onrender.com/:splat"
+  status = 200
+  force = true
