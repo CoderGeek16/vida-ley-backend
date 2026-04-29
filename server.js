@@ -159,10 +159,13 @@ app.post("/generar-pdf", async (req, res) => {
       .single();
 
     const { data: beneficiarios } = await supabase
-      .from("beneficiarios")
-      .select("*")
-      .eq("id_colaborador", id_colaborador)
-      .eq("session_id", session_id);
+    .from("beneficiarios")
+    .select(`
+      *,
+      parentesco:parentescos(nombre)
+    `)
+    .eq("id_colaborador", id_colaborador)
+    .eq("session_id", session_id);
 
     const doc = new PDFDocument({ margin: 40 });
     let buffers = [];
