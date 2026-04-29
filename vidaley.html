@@ -964,40 +964,8 @@
   let authEnabled = false;
   let autenticado = false;
   let session_id = crypto.randomUUID();
-  const GENERO_LABELS = {
-    1: "Masculino",
-    2: "Femenino"
-  };
 
-  function resolveApiBase(){
-    const queryApi = new URLSearchParams(window.location.search).get("api");
-    const savedApi = localStorage.getItem("vidaLeyApi");
-
-    if(queryApi){
-      const normalized = queryApi.replace(/\/+$/, "");
-      localStorage.setItem("vidaLeyApi", normalized);
-      return normalized;
-    }
-
-    if(savedApi){
-      return savedApi.replace(/\/+$/, "");
-    }
-
-    if(["localhost", "127.0.0.1"].includes(window.location.hostname)){
-      return "http://localhost:3000";
-    }
-
-    return "/api";
-  }
-
-  const API = resolveApiBase();
-
-  async function apiFetch(path, options = {}){
-    return fetch(API + path, {
-      credentials: "include",
-      ...options
-    });
-  }
+  const API = "https://vida-ley-backend.onrender.com";
   const accessGate = document.getElementById("access_gate");
   const accessPassword = document.getElementById("access_password");
   const accessStatus = document.getElementById("access_status");
@@ -1042,10 +1010,6 @@
 
   function soloNumeros(valor, maximo){
     return String(valor || "").replace(/\D/g, "").slice(0, maximo);
-  }
-
-  function obtenerGeneroLabel(idGenero){
-    return GENERO_LABELS[idGenero] || "No consignado";
   }
 
   function alternarAcceso(permitido){
@@ -1188,7 +1152,7 @@
   setBusquedaLoading(true);
 
   try{
-    const r = await apiFetch("/colaborador/" + dni);
+    const r = await fetch(API + "/colaborador/" + dni);
     const d = await leerJSON(r);
 
     if(r.status === 401){
@@ -1209,15 +1173,13 @@
     colaboradorData = d.data;
 
     // 🔥 NUEVA SESIÓN AQUÍ
-    if(!session_id){
     session_id = crypto.randomUUID();
-    }
 
     document.getElementById("v_nombre").innerText =
       d.data.apellido_paterno + " " + d.data.apellido_materno + ", " + d.data.nombres;
 
     document.getElementById("v_dni").innerText = d.data.dni;
-    document.getElementById("v_genero").innerText = obtenerGeneroLabel(d.data.id_genero);
+    document.getElementById("v_genero").innerText = d.data.genero;
 
     limpiarListas();
     actualizarResumen();
@@ -1347,7 +1309,7 @@
     btnGuardar.disabled = true;
 
     try{
-      const r = await apiFetch("/guardar-beneficiario", {
+      const r = await fetch(API + "/guardar-beneficiario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
@@ -1387,57 +1349,28 @@
     }
   }
 
-async function generarPDF(){
+  async function generarPDF(){
 
-  if(!colaboradorData){
-    alert("Primero ingresa tu DNI.");
+  const r = await fetch(API + "/generar-pdf", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      id_colaborador: colaboradorData.id,
+      session_id: session_id
+    })
+  });
+
+  const res = await r.json();
+
+  if (!res.ok) {
+    alert("Error generando PDF");
     return;
   }
 
-  setPdfLoading(true);
-  pdfFeedback.innerText = "Generando documento...";
-
-  try{
-
-    const r = await apiFetch("/generar-pdf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        id_colaborador: colaboradorData.id,
-        session_id: session_id
-      })
-    });
-
-    const res = await leerJSON(r);
-
-    // 🔥 VER RESPUESTA REAL EN CONSOLA
-    console.log("RESPUESTA BACKEND:", res);
-
-    if(!res.ok){
-      pdfFeedback.innerText = "❌ " + (res.msg || "Error desconocido");
-      alert("ERROR REAL:\n" + (res.msg || "Error desconocido"));
-      return;
-    }
-
-    // ✅ TODO OK
-    pdfFeedback.innerText = "✅ PDF generado correctamente";
-
-    if(res.url){
-      window.open(res.url, "_blank");
-    }else{
-      alert("PDF generado pero sin URL (revisar backend)");
-    }
-
-  }catch(error){
-    console.error("ERROR COMPLETO:", error);
-
-    pdfFeedback.innerText = "❌ Error de conexión";
-    alert("Error conectando con el servidor");
-  }finally{
-    setPdfLoading(false);
-  }
+  // 👉 abrir PDF guardado
+  window.open(res.url, "_blank");
 }
 
   async function iniciarSesion(){
@@ -1455,7 +1388,7 @@ async function generarPDF(){
     setLoginLoading(true);
 
     try{
-      const r = await apiFetch("/auth/login", {
+      const r = await fetch(API + "/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
@@ -1488,7 +1421,7 @@ async function generarPDF(){
 
   async function cerrarSesion(){
     try{
-      await apiFetch("/auth/logout", { method: "POST" });
+      await fetch(API + "/auth/logout", { method: "POST" });
     }catch(error){
       console.error(error);
     }finally{
@@ -1503,7 +1436,7 @@ async function generarPDF(){
     limpiarEstadoAcceso();
 
     try{
-      const r = await apiFetch("/auth/status");
+      const r = await fetch(API + "/auth/status");
       const res = await leerJSON(r);
 
       authEnabled = Boolean(res.authEnabled);
@@ -1527,55 +1460,8 @@ async function generarPDF(){
   actualizarResumen();
   inputDni.value = soloNumeros(inputDni.value, 8);
   inputDni.classList.add("dni-only");
-  cargarEstadoAcceso();
+  //cargarEstadoAcceso();
+  autenticado = true;
 </script>
-<div id="pdf-content" style="display:none; font-family: Arial; font-size:12px; padding:40px;">
-
-  <h3 style="text-align:center;">ANEXO</h3>
-  <h3 style="text-align:center;">FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS</h3>
-  <h3 style="text-align:center;">DEL SEGURO DE VIDA</h3>
-
-  <p style="text-align:center; font-size:11px;">
-    (Decreto Legislativo N° 688)
-  </p>
-
-  <p style="text-align:justify; font-size:11px;">
-    El/la suscrito(a) declara como beneficiarios del seguro de vida:
-  </p>
-
-  <table style="width:100%; border-collapse:collapse;">
-    <tr>
-      <td style="border:1px solid black; padding:6px;">
-        <b>Nombres:</b> <span id="pdf-nombre"></span>
-      </td>
-      <td style="border:1px solid black; padding:6px;">
-        <b>DNI:</b> <span id="pdf-dni"></span>
-      </td>
-    </tr>
-  </table>
-
-  <h4>Beneficiarios</h4>
-
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th style="border:1px solid black;">Nombre</th>
-        <th style="border:1px solid black;">DNI</th>
-        <th style="border:1px solid black;">Parentesco</th>
-        <th style="border:1px solid black;">Fecha</th>
-        <th style="border:1px solid black;">Domicilio</th>
-      </tr>
-    </thead>
-    <tbody id="pdf-tabla"></tbody>
-  </table>
-
-  <div style="margin-top:60px; text-align:center;">
-    _____________________________<br>
-    Firma del trabajador
-  </div>
-
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </body>
 </html>
