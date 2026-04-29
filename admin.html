@@ -232,6 +232,7 @@ async function listar(){
   const res = await fetch(API + "/admin/colaboradores", {
     credentials: "include"
   }).then(r=>r.json());
+  console.log(res.data);
 
   let html = "<table>";
 
