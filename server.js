@@ -269,6 +269,14 @@ doc.moveDown(2);
 
 doc.text("Lima, " + new Date().toLocaleDateString(), { align: "right" });
 
+doc.end();
+
+} catch (err) {
+  console.error("ERROR PDF:", err);
+  res.status(500).json({ ok:false });
+}
+
+});
 // ===============================
 // 🔥 ADMIN (PROTEGIDO)
 // ===============================
