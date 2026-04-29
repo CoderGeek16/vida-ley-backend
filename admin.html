@@ -240,8 +240,10 @@ async function listar(){
     html += `
       <tr>
         <td>${c.dni}</td>
-        <td>${c.nombres}</td>
-        <td>PRUEBA</td>
+       <td>${c.apellido_paterno || ''}</td>
+       <td>${c.apellido_materno || ''}</td>
+       <td>${c.nombres || ''}</td>
+
         <td><button onclick="ver(${c.id})">Ver</button></td>
       </tr>
     `;
