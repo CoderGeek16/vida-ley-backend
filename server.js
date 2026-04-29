@@ -270,7 +270,7 @@ app.post("/generar-pdf", async (req, res) => {
     function dibujarTabla(lista, yStart) {
 
   let y = yStart;
-  const colX = [startX, 200, 280, 380, 470];
+  const colX = [startX, 190, 270, 360, 430];
 
   // HEADER
   doc.rect(startX, y, width, 20).stroke();
@@ -303,15 +303,18 @@ app.post("/generar-pdf", async (req, res) => {
     const fecha = b.fecha_nacimiento || "";
     const domicilio = b.domicilio || "";
 
-    const rowHeight = 25;
+    const h1 = doc.heightOfString(nombre, { width: 140 });
+    const h2 = doc.heightOfString(domicilio, { width: 85 });
+
+    const rowHeight = Math.max(h1, h2, 20);
 
     doc.rect(startX, y, width, rowHeight).stroke();
 
-    doc.text(nombre, startX + 5, y + 5, { width: 150 });
+    doc.text(nombre, startX + 5, y + 5, { width: 140 });
     doc.text(dni, colX[1] + 5, y + 5);
     doc.text(parentesco, colX[2] + 5, y + 5);
     doc.text(fecha, colX[3] + 5, y + 5);
-    doc.text(domicilio, colX[4] + 5, y + 5, { width: 90 });
+    doc.text(domicilio, colX[4] + 5, y + 5, { width: 85 });
 
     colX.slice(1).forEach(x => {
       doc.moveTo(x, y).lineTo(x, y + rowHeight).stroke();
@@ -338,7 +341,7 @@ app.post("/generar-pdf", async (req, res) => {
 
     y = dibujarTabla(primeros, doc.y);
 
-    doc.moveDown(0.5);
+    doc.moveDown(1.5);
 
     doc.fontSize(7).text(
   "(*) A falta de cónyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo mínimo de dos (2) años continuos, conforme al artículo 326 del Código Civil.\n(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
@@ -368,9 +371,12 @@ app.post("/generar-pdf", async (req, res) => {
     doc.moveDown(0.5);
 
     doc.fontSize(7).text(
-      "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
-      { align: "center" }
+    "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
+    startX,
+    doc.y,
+    { width: width, align: "justify" }
     );
+
 
     // =========================
     // FIRMA
