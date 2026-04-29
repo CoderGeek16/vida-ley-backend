@@ -217,7 +217,7 @@ app.post("/generar-pdf", async (req, res) => {
     (beneficiarios || []).forEach((b, i) => {
       doc.text(`${i+1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`);
       doc.text(`   DNI: ${b.dni || ""}`);
-      doc.text(`   Parentesco: ${b.id_parentesco}`);
+      doc.text(`   Parentesco: ${b.parentesco?.nombre || ""}`);
       doc.text(`   Fecha Nac: ${b.fecha_nacimiento}`);
       doc.moveDown();
     });
