@@ -202,33 +202,72 @@ app.post("/generar-pdf", async (req, res) => {
       }
     });
 
-    // CONTENIDO PDF
-    doc.fontSize(16).text("DECLARACIÓN JURADA VIDA LEY", { align:"center" });
-    doc.moveDown();
+    doc.font("Helvetica");
 
-    doc.fontSize(12);
-    doc.text(`Nombre: ${col.apellido_paterno} ${col.apellido_materno}, ${col.nombres}`);
-    doc.text(`DNI: ${col.dni}`);
-    doc.moveDown();
+// TITULO
+doc.fontSize(12).text("ANEXO", { align: "center" });
+doc.moveDown(0.5);
 
-    doc.text("BENEFICIARIOS:");
-    doc.moveDown();
+doc.fontSize(10).text(
+  "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS\nDEL SEGURO DE VIDA",
+  { align: "center" }
+);
 
-    (beneficiarios || []).forEach((b, i) => {
-      doc.text(`${i+1}. ${b.apellido_paterno} ${b.apellido_materno}, ${b.nombres}`);
-      doc.text(`   DNI: ${b.dni || ""}`);
-      doc.text(`   Parentesco: ${b.parentesco?.nombre || ""}`);
-      doc.text(`   Fecha Nac: ${b.fecha_nacimiento}`);
-      doc.moveDown();
-    });
+doc.moveDown(1);
 
-    doc.end();
+// DATOS TRABAJADOR
+doc.rect(40, doc.y, 520, 25).stroke();
+doc.text(
+  `Nombres y apellidos del trabajador: ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`,
+  45,
+  doc.y + 5
+);
 
-  } catch (err) {
-    console.error("ERROR PDF:", err);
-    res.status(500).json({ ok:false });
-  }
+doc.moveDown(2);
+
+doc.rect(40, doc.y, 520, 25).stroke();
+doc.text(`DNI: ${col.dni}`, 45, doc.y + 5);
+
+doc.moveDown(2);
+
+// SECCION 1
+doc.rect(40, doc.y, 520, 20).fillAndStroke("#eeeeee", "#000");
+doc.fillColor("#000").text("PRIMEROS BENEFICIARIOS", 45, doc.y + 5);
+
+doc.moveDown(1);
+
+// TABLA HEADER
+let y = doc.y;
+
+doc.rect(40, y, 520, 20).stroke();
+doc.text("Nombres y apellidos", 45, y + 5);
+doc.text("DNI", 250, y + 5);
+doc.text("Parentesco", 320, y + 5);
+doc.text("F. Nac", 420, y + 5);
+
+y += 20;
+
+// FILAS
+beneficiarios.forEach(b => {
+  doc.rect(40, y, 520, 20).stroke();
+
+  doc.text(`${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`, 45, y + 5);
+  doc.text(b.dni || "", 250, y + 5);
+  doc.text(b.parentesco?.nombre || "", 320, y + 5);
+  doc.text(b.fecha_nacimiento || "", 420, y + 5);
+
+  y += 20;
 });
+
+doc.moveDown(2);
+
+// FIRMA
+doc.text("______________________________", { align: "center" });
+doc.text("Firma del trabajador", { align: "center" });
+
+doc.moveDown(2);
+
+doc.text("Lima, " + new Date().toLocaleDateString(), { align: "right" });
 
 // ===============================
 // 🔥 ADMIN (PROTEGIDO)
