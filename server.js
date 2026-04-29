@@ -168,8 +168,13 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("session_id", session_id);
 
     // 🔥 SEPARAR BENEFICIARIOS
-    const primeros = beneficiarios.filter(b => b.tipo == "1");
-    const segundos = beneficiarios.filter(b => b.tipo == "2");
+    const primeros = beneficiarios.filter(b =>
+    ["Conyuge", "Hijo", "Hija", "Conviviente"].includes(b.parentesco?.nombre)
+    );
+
+  const segundos = beneficiarios.filter(b =>
+  ["Padre", "Madre", "Hermano"].includes(b.parentesco?.nombre)
+  );
 
     const doc = new PDFDocument({ margin: 40 });
     let buffers = [];
@@ -264,56 +269,59 @@ app.post("/generar-pdf", async (req, res) => {
     // =========================
     function dibujarTabla(lista, yStart) {
 
-      let y = yStart;
-      const colX = [startX, 200, 280, 380, 470];
+  let y = yStart;
+  const colX = [startX, 200, 280, 380, 470];
 
-      // HEADER
-      doc.rect(startX, y, width, 20).stroke();
+  // HEADER
+  doc.rect(startX, y, width, 20).stroke();
 
-      const headers = ["Nombre y apellidos", "DNI", "Parentesco", "Fecha de nacimiento", "Domicilio"];
+  const headers = ["Nombre y apellidos", "DNI", "Parentesco", "Fecha de nacimiento", "Domicilio"];
 
-      headers.forEach((h, i) => {
-        doc.text(h, colX[i] + 5, y + 5, { width: 80 });
-      });
+  headers.forEach((h, i) => {
+    doc.text(h, colX[i] + 5, y + 5, { width: 80 });
+  });
 
-      colX.slice(1).forEach(x => {
-        doc.moveTo(x, y).lineTo(x, y + 20).stroke();
-      });
+  colX.slice(1).forEach(x => {
+    doc.moveTo(x, y).lineTo(x, y + 20).stroke();
+  });
 
-      y += 20;
+  y += 20;
 
-      // FILAS
-      lista.forEach(b => {
+  // SI NO HAY DATOS
+  if (lista.length === 0) {
+    doc.rect(startX, y, width, 20).stroke();
+    doc.text("SIN REGISTROS", startX + 5, y + 5);
+    return y + 20;
+  }
 
-        const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
-        const dni = b.dni || "";
-        const parentesco = b.parentesco?.nombre || "";
-        const fecha = b.fecha_nacimiento || "";
-        const domicilio = b.domicilio || "";
+  // FILAS
+  lista.forEach(b => {
 
-        const h1 = doc.heightOfString(nombre, { width: 150 });
-        const h2 = doc.heightOfString(domicilio, { width: 90 });
+    const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
+    const dni = b.dni || "";
+    const parentesco = b.parentesco?.nombre || "";
+    const fecha = b.fecha_nacimiento || "";
+    const domicilio = b.domicilio || "";
 
-        const rowHeight = Math.max(h1, h2, 20);
+    const rowHeight = 25;
 
-        doc.rect(startX, y, width, rowHeight + 10).stroke();
+    doc.rect(startX, y, width, rowHeight).stroke();
 
-        doc.text(nombre, startX + 5, y + 5, { width: 150 });
-        doc.text(dni, colX[1] + 5, y + 5);
-        doc.text(parentesco, colX[2] + 5, y + 5);
-        doc.text(fecha, colX[3] + 5, y + 5);
-        doc.text(domicilio, colX[4] + 5, y + 5, { width: 90 });
+    doc.text(nombre, startX + 5, y + 5, { width: 150 });
+    doc.text(dni, colX[1] + 5, y + 5);
+    doc.text(parentesco, colX[2] + 5, y + 5);
+    doc.text(fecha, colX[3] + 5, y + 5);
+    doc.text(domicilio, colX[4] + 5, y + 5, { width: 90 });
 
-        colX.slice(1).forEach(x => {
-          doc.moveTo(x, y).lineTo(x, y + rowHeight + 10).stroke();
-        });
+    colX.slice(1).forEach(x => {
+      doc.moveTo(x, y).lineTo(x, y + rowHeight).stroke();
+    });
 
-        y += rowHeight + 10;
-      });
+    y += rowHeight;
+  });
 
-      return y;
-    }
-
+  return y;
+}
     // =========================
     // PRIMEROS BENEFICIARIOS
     // =========================
@@ -333,14 +341,16 @@ app.post("/generar-pdf", async (req, res) => {
     doc.moveDown(0.5);
 
     doc.fontSize(7).text(
-      "(*) A falta de cónyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo mínimo de dos (2) años continuos, conforme al artículo 326 del Código Civil.\n(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
-      { align: "center" }
-    );
+  "(*) A falta de cónyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo mínimo de dos (2) años continuos, conforme al artículo 326 del Código Civil.\n(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
+  startX,
+  doc.y,
+  { width: width, align: "justify" }
+);
 
     // =========================
     // SEGUNDOS BENEFICIARIOS
     // =========================
-    doc.moveDown(1);
+    doc.moveDown(2);
 
     y = doc.y;
 
