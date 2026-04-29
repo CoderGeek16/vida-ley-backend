@@ -159,13 +159,17 @@ app.post("/generar-pdf", async (req, res) => {
       .single();
 
     const { data: beneficiarios } = await supabase
-    .from("beneficiarios")
-    .select(`
-      *,
-      parentesco:parentescos(nombre)
-    `)
-    .eq("id_colaborador", id_colaborador)
-    .eq("session_id", session_id);
+      .from("beneficiarios")
+      .select(`
+        *,
+        parentesco:parentescos(nombre)
+      `)
+      .eq("id_colaborador", id_colaborador)
+      .eq("session_id", session_id);
+
+    // 🔥 SEPARAR BENEFICIARIOS
+    const primeros = beneficiarios.filter(b => b.tipo == "1");
+    const segundos = beneficiarios.filter(b => b.tipo == "2");
 
     const doc = new PDFDocument({ margin: 40 });
     let buffers = [];
@@ -178,17 +182,12 @@ app.post("/generar-pdf", async (req, res) => {
 
         const fileName = `vida_${Date.now()}.pdf`;
 
-        const { error: uploadError } = await supabase.storage
+        await supabase.storage
           .from("pdfs")
           .upload(fileName, pdfBuffer, {
             contentType: "application/pdf",
             upsert: true
           });
-
-        if (uploadError) {
-          console.error("ERROR STORAGE:", uploadError);
-          return res.status(500).json({ ok:false });
-        }
 
         const { data } = await supabase.storage
           .from("pdfs")
@@ -197,168 +196,191 @@ app.post("/generar-pdf", async (req, res) => {
         res.json({ ok:true, url:data.signedUrl });
 
       } catch (err) {
-        console.error("ERROR FINAL:", err);
+        console.error(err);
         res.status(500).json({ ok:false });
       }
     });
 
-   const startX = 40;
-const width = 520;
+    const startX = 40;
+    const width = 520;
 
-// TITULO
-doc.fontSize(12).text("ANEXO", { align: "center" });
-doc.moveDown(0.5);
+    // =========================
+    // TITULO
+    // =========================
+    doc.fontSize(12).text("ANEXO", { align: "center" });
+    doc.moveDown(0.5);
 
-doc.fontSize(10).text(
-  "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS\nDEL SEGURO DE VIDA",
-  { align: "center" }
-);
+    doc.fontSize(10).text(
+      "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA",
+      { align: "center" }
+    );
 
-doc.moveDown(1);
+    doc.moveDown(0.5);
 
-// TEXTO LEGAL
-doc.fontSize(8).text(
-  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688...",
-  { align: "justify" }
-);
+    doc.fontSize(9).text(
+      "(Decreto Legislativo N° 688 y sus normas modificatorias, complementarias y reglamentarias)",
+      { align: "center" }
+    );
 
-doc.moveDown(1);
+    doc.moveDown(1);
 
-// =====================
-// DATOS TRABAJADOR
-// =====================
-let y = doc.y;
+    doc.fontSize(8).text(
+      "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688, Ley de Consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de fallecimiento a consecuencia de un accidente.",
+      { align: "justify" }
+    );
 
-// CAJA PRINCIPAL
-doc.rect(startX, y, width, 40).stroke();
+    doc.moveDown(1);
 
-// DIVISION DNI
-doc.moveTo(startX + 380, y)
-   .lineTo(startX + 380, y + 40)
-   .stroke();
+    // =========================
+    // DATOS TRABAJADOR
+    // =========================
+    let y = doc.y;
 
-// TEXTO
-doc.fontSize(9).text(
-  `Nombres y apellidos del trabajador(a): ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`,
-  startX + 5,
-  y + 5,
-  { width: 370 }
-);
+    doc.rect(startX, y, width, 40).stroke();
 
-doc.text(`DNI: ${col.dni}`, startX + 385, y + 5);
+    doc.moveTo(startX + 380, y)
+       .lineTo(startX + 380, y + 40)
+       .stroke();
 
-doc.moveDown(3);
+    doc.fontSize(9).text(
+      `Nombres y apellidos del trabajador(a) asegurado(a): ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`,
+      startX + 5,
+      y + 5,
+      { width: 370 }
+    );
 
-// EMPRESA
-y = doc.y;
-doc.rect(startX, y, width, 25).stroke();
-doc.text("Nombre o razón social del empleador: Trabajos Marítimos S.A.", startX + 5, y + 7);
+    doc.text(`DNI: ${col.dni}`, startX + 385, y + 5);
 
-doc.moveDown(2);
+    doc.moveDown(3);
 
-// =====================
-// SECCION GRIS
-// =====================
-y = doc.y;
+    y = doc.y;
+    doc.rect(startX, y, width, 25).stroke();
+    doc.text("Nombre o razón social del empleador: Trabajos Marítimos S.A.", startX + 5, y + 7);
 
-doc.rect(startX, y, width, 20).fill("#d9d9d9");
-doc.fillColor("black").text(
-  "Primeros Beneficiarios: Cónyuge o conviviente y descendientes (*)",
-  startX + 5,
-  y + 5
-);
+    doc.moveDown(2);
 
-doc.moveDown(1.5);
+    // =========================
+    // FUNCION TABLA
+    // =========================
+    function dibujarTabla(lista, yStart) {
 
-// =====================
-// TABLA HEADER
-// =====================
-y = doc.y;
+      let y = yStart;
+      const colX = [startX, 200, 280, 380, 470];
 
-const colX = [startX, 200, 280, 380, 470];
-const headers = ["Nombre y apellidos", "DNI", "Parentesco", "Fecha de nacimiento", "Domicilio"];
+      // HEADER
+      doc.rect(startX, y, width, 20).stroke();
 
-// FILA HEADER
-doc.rect(startX, y, width, 20).stroke();
+      const headers = ["Nombre y apellidos", "DNI", "Parentesco", "Fecha de nacimiento", "Domicilio"];
 
-headers.forEach((h, i) => {
-  doc.text(h, colX[i] + 5, y + 5, { width: 80 });
-});
+      headers.forEach((h, i) => {
+        doc.text(h, colX[i] + 5, y + 5, { width: 80 });
+      });
 
-// LINEAS VERTICALES
-colX.slice(1).forEach(x => {
-  doc.moveTo(x, y).lineTo(x, y + 20).stroke();
-});
+      colX.slice(1).forEach(x => {
+        doc.moveTo(x, y).lineTo(x, y + 20).stroke();
+      });
 
-y += 20;
+      y += 20;
 
-// =====================
-// FILAS BENEFICIARIOS
-// =====================
-beneficiarios.forEach(b => {
+      // FILAS
+      lista.forEach(b => {
 
-  const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
-  const dni = b.dni || "";
-  const parentesco = b.parentesco?.nombre || "";
-  const fecha = b.fecha_nacimiento || "";
-  const domicilio = b.domicilio || "";
+        const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
+        const dni = b.dni || "";
+        const parentesco = b.parentesco?.nombre || "";
+        const fecha = b.fecha_nacimiento || "";
+        const domicilio = b.domicilio || "";
 
-  // 🔥 calcular alturas reales
-  const h1 = doc.heightOfString(nombre, { width: 150 });
-  const h2 = doc.heightOfString(domicilio, { width: 90 });
+        const h1 = doc.heightOfString(nombre, { width: 150 });
+        const h2 = doc.heightOfString(domicilio, { width: 90 });
 
-  const rowHeight = Math.max(h1, h2, 20); // mínimo 20
+        const rowHeight = Math.max(h1, h2, 20);
 
-  // 🔲 dibujar caja completa
-  doc.rect(startX, y, width, rowHeight + 10).stroke();
+        doc.rect(startX, y, width, rowHeight + 10).stroke();
 
-  // TEXTO CON WIDTH (CLAVE)
-  doc.text(nombre, startX + 5, y + 5, { width: 150 });
-  doc.text(dni, colX[1] + 5, y + 5, { width: 70 });
-  doc.text(parentesco, colX[2] + 5, y + 5, { width: 90 });
-  doc.text(fecha, colX[3] + 5, y + 5, { width: 80 });
-  doc.text(domicilio, colX[4] + 5, y + 5, { width: 90 });
+        doc.text(nombre, startX + 5, y + 5, { width: 150 });
+        doc.text(dni, colX[1] + 5, y + 5);
+        doc.text(parentesco, colX[2] + 5, y + 5);
+        doc.text(fecha, colX[3] + 5, y + 5);
+        doc.text(domicilio, colX[4] + 5, y + 5, { width: 90 });
 
-  // 🔥 líneas verticales adaptadas
-  colX.slice(1).forEach(x => {
-    doc.moveTo(x, y).lineTo(x, y + rowHeight + 10).stroke();
-  });
+        colX.slice(1).forEach(x => {
+          doc.moveTo(x, y).lineTo(x, y + rowHeight + 10).stroke();
+        });
 
-  y += rowHeight + 10;
-});
+        y += rowHeight + 10;
+      });
 
-// =====================
-// SEGUNDA SECCION
-// =====================
-y = doc.y;
+      return y;
+    }
 
-doc.rect(startX, y, width, 20).fill("#d9d9d9");
-doc.fillColor("black").text(
-  "Ascendientes y hermanos menores de 18 años",
-  startX + 5,
-  y + 5
-);
+    // =========================
+    // PRIMEROS BENEFICIARIOS
+    // =========================
+    y = doc.y;
 
-doc.moveDown(4);
+    doc.rect(startX, y, width, 20).fill("#d9d9d9");
+    doc.fillColor("black").text(
+      "Primeros Beneficiarios: Cónyuge o conviviente y descendientes (*) (**)",
+      startX + 5,
+      y + 5
+    );
 
-// =====================
-// FIRMA
-// =====================
-doc.moveDown(2);
+    doc.moveDown(1.5);
 
-doc.text("______________________________", { align: "center" });
-doc.text("Firma del trabajador(a) asegurado(a)", { align: "center" });
+    y = dibujarTabla(primeros, doc.y);
 
-doc.moveDown(2);
+    doc.moveDown(0.5);
 
-doc.text("Lima, " + new Date().toLocaleDateString(), { align: "right" });
-doc.end();
+    doc.fontSize(7).text(
+      "(*) A falta de cónyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo mínimo de dos (2) años continuos, conforme al artículo 326 del Código Civil.\n(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
+      { align: "center" }
+    );
 
-} catch (err) {
-  console.error("ERROR PDF:", err);
-  res.status(500).json({ ok:false });
-}
+    // =========================
+    // SEGUNDOS BENEFICIARIOS
+    // =========================
+    doc.moveDown(1);
 
+    y = doc.y;
+
+    doc.rect(startX, y, width, 20).fill("#d9d9d9");
+    doc.fillColor("black").text(
+      "Solo a falta de los Primeros Beneficiarios: Ascendientes y hermanos menores de dieciocho (18) años (***)",
+      startX + 5,
+      y + 5
+    );
+
+    doc.moveDown(1.5);
+
+    y = dibujarTabla(segundos, doc.y);
+
+    doc.moveDown(0.5);
+
+    doc.fontSize(7).text(
+      "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
+      { align: "center" }
+    );
+
+    // =========================
+    // FIRMA
+    // =========================
+    doc.moveDown(3);
+
+    doc.text("______________________________", { align: "center" });
+    doc.text("Firma del trabajador(a) asegurado(a)", { align: "center" });
+    doc.text("(Legalizada notarialmente, o por Juez de Paz a falta de notario)", { align: "center", fontSize: 7 });
+
+    doc.moveDown(2);
+
+    doc.text("Lima, " + new Date().toLocaleDateString(), { align: "right" });
+
+    doc.end();
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok:false });
+  }
 });
 // ===============================
 // 🔥 ADMIN (PROTEGIDO)
