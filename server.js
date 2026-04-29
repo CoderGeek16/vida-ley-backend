@@ -297,22 +297,35 @@ y += 20;
 // =====================
 beneficiarios.forEach(b => {
 
-  doc.rect(startX, y, width, 20).stroke();
+  const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
+  const dni = b.dni || "";
+  const parentesco = b.parentesco?.nombre || "";
+  const fecha = b.fecha_nacimiento || "";
+  const domicilio = b.domicilio || "";
 
-  doc.text(`${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`, startX + 5, y + 5, { width: 150 });
-  doc.text(b.dni || "", colX[1] + 5, y + 5);
-  doc.text(b.parentesco?.nombre || "", colX[2] + 5, y + 5);
-  doc.text(b.fecha_nacimiento || "", colX[3] + 5, y + 5);
-  doc.text(b.domicilio || "", colX[4] + 5, y + 5);
+  // 🔥 calcular alturas reales
+  const h1 = doc.heightOfString(nombre, { width: 150 });
+  const h2 = doc.heightOfString(domicilio, { width: 90 });
 
+  const rowHeight = Math.max(h1, h2, 20); // mínimo 20
+
+  // 🔲 dibujar caja completa
+  doc.rect(startX, y, width, rowHeight + 10).stroke();
+
+  // TEXTO CON WIDTH (CLAVE)
+  doc.text(nombre, startX + 5, y + 5, { width: 150 });
+  doc.text(dni, colX[1] + 5, y + 5, { width: 70 });
+  doc.text(parentesco, colX[2] + 5, y + 5, { width: 90 });
+  doc.text(fecha, colX[3] + 5, y + 5, { width: 80 });
+  doc.text(domicilio, colX[4] + 5, y + 5, { width: 90 });
+
+  // 🔥 líneas verticales adaptadas
   colX.slice(1).forEach(x => {
-    doc.moveTo(x, y).lineTo(x, y + 20).stroke();
+    doc.moveTo(x, y).lineTo(x, y + rowHeight + 10).stroke();
   });
 
-  y += 20;
+  y += rowHeight + 10;
 });
-
-doc.moveDown(2);
 
 // =====================
 // SEGUNDA SECCION
