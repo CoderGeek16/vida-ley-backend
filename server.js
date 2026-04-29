@@ -202,7 +202,8 @@ app.post("/generar-pdf", async (req, res) => {
       }
     });
 
-    doc.font("Helvetica");
+   const startX = 40;
+const width = 520;
 
 // TITULO
 doc.fontSize(12).text("ANEXO", { align: "center" });
@@ -215,60 +216,129 @@ doc.fontSize(10).text(
 
 doc.moveDown(1);
 
-// DATOS TRABAJADOR
-doc.rect(40, doc.y, 520, 25).stroke();
-doc.text(
-  `Nombres y apellidos del trabajador: ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`,
-  45,
-  doc.y + 5
+// TEXTO LEGAL
+doc.fontSize(8).text(
+  "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688...",
+  { align: "justify" }
 );
-
-doc.moveDown(2);
-
-doc.rect(40, doc.y, 520, 25).stroke();
-doc.text(`DNI: ${col.dni}`, 45, doc.y + 5);
-
-doc.moveDown(2);
-
-// SECCION 1
-doc.rect(40, doc.y, 520, 20).fillAndStroke("#eeeeee", "#000");
-doc.fillColor("#000").text("PRIMEROS BENEFICIARIOS", 45, doc.y + 5);
 
 doc.moveDown(1);
 
-// TABLA HEADER
+// =====================
+// DATOS TRABAJADOR
+// =====================
 let y = doc.y;
 
-doc.rect(40, y, 520, 20).stroke();
-doc.text("Nombres y apellidos", 45, y + 5);
-doc.text("DNI", 250, y + 5);
-doc.text("Parentesco", 320, y + 5);
-doc.text("F. Nac", 420, y + 5);
+// CAJA PRINCIPAL
+doc.rect(startX, y, width, 40).stroke();
+
+// DIVISION DNI
+doc.moveTo(startX + 380, y)
+   .lineTo(startX + 380, y + 40)
+   .stroke();
+
+// TEXTO
+doc.fontSize(9).text(
+  `Nombres y apellidos del trabajador(a): ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`,
+  startX + 5,
+  y + 5,
+  { width: 370 }
+);
+
+doc.text(`DNI: ${col.dni}`, startX + 385, y + 5);
+
+doc.moveDown(3);
+
+// EMPRESA
+y = doc.y;
+doc.rect(startX, y, width, 25).stroke();
+doc.text("Nombre o razón social del empleador: Trabajos Marítimos S.A.", startX + 5, y + 7);
+
+doc.moveDown(2);
+
+// =====================
+// SECCION GRIS
+// =====================
+y = doc.y;
+
+doc.rect(startX, y, width, 20).fill("#d9d9d9");
+doc.fillColor("black").text(
+  "Primeros Beneficiarios: Cónyuge o conviviente y descendientes (*)",
+  startX + 5,
+  y + 5
+);
+
+doc.moveDown(1.5);
+
+// =====================
+// TABLA HEADER
+// =====================
+y = doc.y;
+
+const colX = [startX, 200, 280, 380, 470];
+const headers = ["Nombre y apellidos", "DNI", "Parentesco", "Fecha de nacimiento", "Domicilio"];
+
+// FILA HEADER
+doc.rect(startX, y, width, 20).stroke();
+
+headers.forEach((h, i) => {
+  doc.text(h, colX[i] + 5, y + 5, { width: 80 });
+});
+
+// LINEAS VERTICALES
+colX.slice(1).forEach(x => {
+  doc.moveTo(x, y).lineTo(x, y + 20).stroke();
+});
 
 y += 20;
 
-// FILAS
+// =====================
+// FILAS BENEFICIARIOS
+// =====================
 beneficiarios.forEach(b => {
-  doc.rect(40, y, 520, 20).stroke();
 
-  doc.text(`${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`, 45, y + 5);
-  doc.text(b.dni || "", 250, y + 5);
-  doc.text(b.parentesco?.nombre || "", 320, y + 5);
-  doc.text(b.fecha_nacimiento || "", 420, y + 5);
+  doc.rect(startX, y, width, 20).stroke();
+
+  doc.text(`${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`, startX + 5, y + 5, { width: 150 });
+  doc.text(b.dni || "", colX[1] + 5, y + 5);
+  doc.text(b.parentesco?.nombre || "", colX[2] + 5, y + 5);
+  doc.text(b.fecha_nacimiento || "", colX[3] + 5, y + 5);
+  doc.text(b.domicilio || "", colX[4] + 5, y + 5);
+
+  colX.slice(1).forEach(x => {
+    doc.moveTo(x, y).lineTo(x, y + 20).stroke();
+  });
 
   y += 20;
 });
 
 doc.moveDown(2);
 
+// =====================
+// SEGUNDA SECCION
+// =====================
+y = doc.y;
+
+doc.rect(startX, y, width, 20).fill("#d9d9d9");
+doc.fillColor("black").text(
+  "Ascendientes y hermanos menores de 18 años",
+  startX + 5,
+  y + 5
+);
+
+doc.moveDown(4);
+
+// =====================
 // FIRMA
+// =====================
+doc.moveDown(2);
+
 doc.text("______________________________", { align: "center" });
-doc.text("Firma del trabajador", { align: "center" });
+doc.text("Firma del trabajador(a) asegurado(a)", { align: "center" });
 
 doc.moveDown(2);
 
 doc.text("Lima, " + new Date().toLocaleDateString(), { align: "right" });
-
 doc.end();
 
 } catch (err) {
