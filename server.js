@@ -167,14 +167,30 @@ app.post("/generar-pdf", async (req, res) => {
       .eq("id_colaborador", id_colaborador)
       .eq("session_id", session_id);
 
-    // 🔥 SEPARAR BENEFICIARIOS
-    const primeros = beneficiarios.filter(b =>
-    ["Conyuge", "Hijo", "Hija", "Conviviente"].includes(b.parentesco?.nombre)
-    );
+      console.log("BENEFICIARIOS:", beneficiarios);
 
-  const segundos = beneficiarios.filter(b =>
-  ["Padre", "Madre", "Hermano"].includes(b.parentesco?.nombre)
-  );
+
+    // 🔥 SEPARAR BENEFICIARIOS
+  const primeros = beneficiarios.filter(b => {
+  const p = (b.parentesco?.nombre || "").toLowerCase();
+
+    return (
+      p.includes("conyuge") ||
+      p.includes("cónyuge") ||
+      p.includes("hijo") ||
+      p.includes("conviviente")
+    );
+  });
+
+  const segundos = beneficiarios.filter(b => {
+  const p = (b.parentesco?.nombre || "").toLowerCase();
+
+    return (
+      p.includes("padre") ||
+      p.includes("madre") ||
+      p.includes("hermano")
+    );
+  });
 
     const doc = new PDFDocument({ margin: 40 });
     let buffers = [];
@@ -300,7 +316,9 @@ app.post("/generar-pdf", async (req, res) => {
     const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
     const dni = b.dni || "";
     const parentesco = b.parentesco?.nombre || "";
-    const fecha = b.fecha_nacimiento || "";
+    const fecha = b.fecha_nacimiento
+    ? new Date(b.fecha_nacimiento).toLocaleDateString("es-PE")
+    : "";
     const domicilio = b.domicilio || "";
 
     const h1 = doc.heightOfString(nombre, { width: 140 });
