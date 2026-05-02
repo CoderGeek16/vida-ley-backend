@@ -9,7 +9,7 @@ const PDFDocument = require("pdfkit");
 const app = express();
 
 // ===============================
-// 🔐 MIDDLEWARE
+//  MIDDLEWARE
 // ===============================
 const allowedOrigins = [
   "http://127.0.0.1:5500",
@@ -40,7 +40,7 @@ const supabase = createClient(
 );
 
 // ===============================
-// 🔐 AUTH (LOGIN REAL)
+//  AUTH (LOGIN REAL)
 // ===============================
 app.post("/auth/login", (req, res) => {
   const { password } = req.body;
@@ -70,7 +70,7 @@ app.get("/auth/status", (req, res) => {
 });
 
 // ===============================
-// 🔐 PROTECCIÓN ADMIN
+//  PROTECCIÓN ADMIN
 // ===============================
 function checkAdmin(req, res, next){
   if(req.cookies.admin !== "true"){
@@ -80,22 +80,25 @@ function checkAdmin(req, res, next){
 }
 
 // ===============================
-// 🟢 TEST
+//  TEST
 // ===============================
 app.get("/", (req, res) => {
   res.send("Servidor funcionando 🚀");
 });
 
 // ===============================
-// 🔍 COLABORADOR
+//  COLABORADOR
 // ===============================
 app.get("/colaborador/:dni", async (req, res) => {
   try {
     const { data } = await supabase
       .from("colaboradores")
-      .select("*")
-      .eq("dni", req.params.dni)
-      .single();
+    .select(`
+      *,
+      genero:genero(genero)
+    `)
+    .eq("dni", req.params.dni)
+    .single();
 
     if (!data) return res.json({ ok: false });
 
@@ -108,7 +111,7 @@ app.get("/colaborador/:dni", async (req, res) => {
 });
 
 // ===============================
-// 💾 GUARDAR BENEFICIARIO
+//  GUARDAR BENEFICIARIO
 // ===============================
 app.post("/guardar-beneficiario", async (req, res) => {
   try {
@@ -145,7 +148,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
 });
 
 // ===============================
-// 📄 GENERAR PDF
+//  GENERAR PDF
 // ===============================
 app.post("/generar-pdf", async (req, res) => {
   try {
@@ -170,7 +173,7 @@ app.post("/generar-pdf", async (req, res) => {
       console.log("BENEFICIARIOS:", beneficiarios);
 
 
-    // 🔥 SEPARAR BENEFICIARIOS
+    // SEPARAR BENEFICIARIOS
   const primeros = beneficiarios.filter(b => {
   const p = (b.parentesco?.nombre || "").toLowerCase();
 
@@ -417,7 +420,7 @@ app.post("/generar-pdf", async (req, res) => {
   }
 });
 // ===============================
-// 🔥 ADMIN (PROTEGIDO)
+//  ADMIN (PROTEGIDO)
 // ===============================
 app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
   const { data } = await supabase

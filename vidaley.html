@@ -1179,7 +1179,7 @@
       d.data.apellido_paterno + " " + d.data.apellido_materno + ", " + d.data.nombres;
 
     document.getElementById("v_dni").innerText = d.data.dni;
-    document.getElementById("v_genero").innerText = d.data.genero;
+    document.getElementById("v_genero").innerText = d.data.genero?.genero || "";
 
     limpiarListas();
     actualizarResumen();
