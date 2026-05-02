@@ -455,6 +455,35 @@ app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
   res.json({ ok:true, total:data.length });
 });
 
+async function mostrarConfirmacion() {
+
+  const r = await fetch(API + "/beneficiarios?session_id=" + session_id);
+  const res = await r.json();
+
+  if (!res.ok) {
+    alert("Error al obtener beneficiarios");
+    return;
+  }
+
+  const lista = document.getElementById("listaBeneficiarios");
+  lista.innerHTML = "";
+
+  res.data.forEach(b => {
+    lista.innerHTML += `<li>${b.nombres} ${b.apellido_paterno}</li>`;
+  });
+
+  document.getElementById("modalConfirmacion").style.display = "block";
+}
+
+function cerrarModal() {
+  document.getElementById("modalConfirmacion").style.display = "none";
+}
+
+function confirmarPDF() {
+  document.getElementById("modalConfirmacion").style.display = "none";
+  generarPDF();
+}
+
 // ===============================
 const PORT = process.env.PORT || 3000;
 
