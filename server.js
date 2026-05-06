@@ -193,7 +193,7 @@ app.get("/colaborador/:dni", async (req,res)=>{
       .from("colaboradores")
       .select("*")
       .eq("dni", dni)
-      .single();
+      .maybeSingle(); 
 
     console.log("DATA:", data);
     console.log("ERROR:", error);
@@ -206,28 +206,43 @@ app.get("/colaborador/:dni", async (req,res)=>{
 
   }catch(e){
     console.error("ERROR SERVIDOR:", e);
-    res.status(500).json({ ok:false, error: e.message });
+    res.status(500).json({ ok:false });
   }
 });
 
 // ===============================
 // GUARDAR BENEFICIARIO
 // ===============================
-app.post("/guardar-beneficiario", verificarToken, async (req, res) => {
+app.post("/guardar-beneficiario", async (req, res) => {
+  try{
 
-const { error } = await supabase
-.from("beneficiarios")
-.insert([req.body]);
+    const data = req.body;
 
-if(error) return res.json({ ok:false });
+    console.log("GUARDANDO BENEFICIARIO:", data);
 
-res.json({ ok:true });
+    const { data: insertado, error } = await supabase
+      .from("beneficiarios")
+      .insert([data])
+      .select()
+      .single();
+
+    if(error){
+      console.error("ERROR INSERT:", error);
+      return res.status(500).json({ ok:false });
+    }
+
+    res.json({ ok:true, data: insertado });
+
+  }catch(e){
+    console.error("ERROR SERVIDOR:", e);
+    res.status(500).json({ ok:false });
+  }
 });
 
 // ===============================
 // GENERAR PDF
 // ===============================
-app.post("/generar-pdf", verificarToken, async (req, res) => {
+app.post("/generar-pdf", async (req, res) => {
 try{
 const { id_colaborador, session_id } = req.body;
 
