@@ -3,490 +3,344 @@ require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs"); // ✔ más estable en Windows
 const { createClient } = require('@supabase/supabase-js');
 const PDFDocument = require("pdfkit");
 
 const app = express();
 
 // ===============================
-//  MIDDLEWARE
-// ===============================
-const allowedOrigins = [
-  "http://127.0.0.1:5500",
-  "http://localhost:5500",
-  "https://registrovidaley.netlify.app"
-];
-
-app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("No permitido por CORS"));
-    }
-  },
-  credentials: true
-}));
-
-app.use(express.json());
-app.use(cookieParser());
-
-// ===============================
-// 🔌 SUPABASE
-// ===============================
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
-
-// ===============================
-//  AUTH (LOGIN REAL)
-// ===============================
-app.post("/auth/login", (req, res) => {
-  const { password } = req.body;
-
-  if (password === process.env.APP_ACCESS_PASSWORD) {
-    res.cookie("admin", "true", {
-    httpOnly: true,
-    sameSite: "none", // 🔥 CAMBIO CLAVE
-    secure: true
-   });
-
-    return res.json({ ok: true });
-  }
-
-  res.json({ ok: false });
-});
-
-app.post("/auth/logout", (req, res) => {
-  res.clearCookie("admin");
-  res.json({ ok: true });
-});
-
-app.get("/auth/status", (req, res) => {
-  res.json({
-    authenticated: req.cookies.admin === "true"
-  });
-});
-
-// ===============================
-//  PROTECCIÓN ADMIN
-// ===============================
-function checkAdmin(req, res, next){
-  if(req.cookies.admin !== "true"){
-    return res.status(403).json({ ok:false, msg:"No autorizado" });
-  }
-  next();
-}
-
-// ===============================
-//  TEST
-// ===============================
-app.get("/", (req, res) => {
-  res.send("Servidor funcionando 🚀");
-});
-
-// ===============================
-//  COLABORADOR
-// ===============================
-app.get("/colaborador/:dni", async (req, res) => {
-  try {
-    const { data } = await supabase
-      .from("colaboradores")
-    .select(`
-      *,
-      genero:genero(genero)
-    `)
-    .eq("dni", req.params.dni)
-    .single();
-
-    if (!data) return res.json({ ok: false });
-
-    res.json({ ok: true, data });
-
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false });
-  }
-});
-
-// ===============================
-//  GUARDAR BENEFICIARIO
-// ===============================
-app.post("/guardar-beneficiario", async (req, res) => {
-  try {
-
-    const data = {
-      id_colaborador: req.body.id_colaborador,
-      session_id: req.body.session_id,
-      tipo: req.body.tipo,
-      dni: req.body.dni,
-      nombres: req.body.nombres,
-      apellido_paterno: req.body.apellido_paterno,
-      apellido_materno: req.body.apellido_materno,
-      domicilio: req.body.domicilio,
-      id_parentesco: req.body.id_parentesco,
-      id_genero: req.body.id_genero,
-      fecha_nacimiento: req.body.fecha_nacimiento
-    };
-
-    const { error } = await supabase
-      .from("beneficiarios")
-      .insert([data]);
-
-    if (error) {
-      console.error("ERROR INSERT:", error);
-      return res.json({ ok: false });
-    }
-
-    res.json({ ok: true });
-
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false });
-  }
-});
-
-// ===============================
-//  GENERAR PDF
-// ===============================
-app.post("/generar-pdf", async (req, res) => {
-  try {
-
-    const { id_colaborador, session_id } = req.body;
-
-    const { data: col } = await supabase
-      .from("colaboradores")
-      .select("*")
-      .eq("id", id_colaborador)
-      .single();
-
-    const { data: beneficiarios } = await supabase
-      .from("beneficiarios")
-      .select(`
-        *,
-        parentesco:parentescos(nombre)
-      `)
-      .eq("id_colaborador", id_colaborador)
-      .eq("session_id", session_id);
-
-      console.log("BENEFICIARIOS:", beneficiarios);
-
-
-    // SEPARAR BENEFICIARIOS
-  const primeros = beneficiarios.filter(b => {
-  const p = (b.parentesco?.nombre || "").toLowerCase();
-
-    return (
-      p.includes("conyuge") ||
-      p.includes("cónyuge") ||
-      p.includes("hijo") ||
-      p.includes("conviviente")
-    );
-  });
-
-  const segundos = beneficiarios.filter(b => {
-  const p = (b.parentesco?.nombre || "").toLowerCase();
-
-    return (
-      p.includes("padre") ||
-      p.includes("madre") ||
-      p.includes("hermano")
-    );
-  });
-
-    const doc = new PDFDocument({ margin: 40 });
-    let buffers = [];
-
-    doc.on("data", buffers.push.bind(buffers));
-
-    doc.on("end", async () => {
-      try {
-        const pdfBuffer = Buffer.concat(buffers);
-
-        const fileName = `vida_${Date.now()}.pdf`;
-
-        await supabase.storage
-          .from("pdfs")
-          .upload(fileName, pdfBuffer, {
-            contentType: "application/pdf",
-            upsert: true
-          });
-
-        const { data } = await supabase.storage
-          .from("pdfs")
-          .createSignedUrl(fileName, 300);
-
-        res.json({ ok:true, url:data.signedUrl });
-
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ ok:false });
-      }
-    });
-
-    const startX = 40;
-    const width = 520;
-
-    // =========================
-    // TITULO
-    // =========================
-    doc.fontSize(12).text("ANEXO", { align: "center" });
-    doc.moveDown(0.5);
-
-    doc.fontSize(10).text(
-      "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA",
-      { align: "center" }
-    );
-
-    doc.moveDown(0.5);
-
-    doc.fontSize(9).text(
-      "(Decreto Legislativo N° 688 y sus normas modificatorias, complementarias y reglamentarias)",
-      { align: "center" }
-    );
-
-    doc.moveDown(1);
-
-    doc.fontSize(8).text(
-      "El/la suscrito(a), de acuerdo a lo dispuesto en el artículo 6 del Decreto Legislativo N° 688, Ley de Consolidación de Beneficios Sociales, formula la presente Declaración Jurada sobre los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de fallecimiento a consecuencia de un accidente.",
-      { align: "justify" }
-    );
-
-    doc.moveDown(1);
-
-    // =========================
-    // DATOS TRABAJADOR
-    // =========================
-    let y = doc.y;
-
-    doc.rect(startX, y, width, 40).stroke();
-
-    doc.moveTo(startX + 380, y)
-       .lineTo(startX + 380, y + 40)
-       .stroke();
-
-    doc.fontSize(9).text(
-      `Nombres y apellidos del trabajador(a) asegurado(a): ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`,
-      startX + 5,
-      y + 5,
-      { width: 370 }
-    );
-
-    doc.text(`DNI: ${col.dni}`, startX + 385, y + 5);
-
-    doc.moveDown(3);
-
-    y = doc.y;
-    doc.rect(startX, y, width, 25).stroke();
-    doc.text("Nombre o razón social del empleador: Trabajos Marítimos S.A.", startX + 5, y + 7);
-
-    doc.moveDown(2);
-
-    // =========================
-    // FUNCION TABLA
-    // =========================
-    function dibujarTabla(lista, yStart) {
-
-  let y = yStart;
-  const colX = [startX, 190, 270, 360, 430];
-
-  // HEADER
-  doc.rect(startX, y, width, 20).stroke();
-
-  const headers = ["Nombre y apellidos", "DNI", "Parentesco", "Fecha de nacimiento", "Domicilio"];
-
-  headers.forEach((h, i) => {
-    doc.text(h, colX[i] + 5, y + 5, { width: 80 });
-  });
-
-  colX.slice(1).forEach(x => {
-    doc.moveTo(x, y).lineTo(x, y + 20).stroke();
-  });
-
-  y += 20;
-
-  // SI NO HAY DATOS
-  if (lista.length === 0) {
-    doc.rect(startX, y, width, 20).stroke();
-    doc.text("SIN REGISTROS", startX + 5, y + 5);
-    return y + 20;
-  }
-
-  // FILAS
-  lista.forEach(b => {
-
-    const nombre = `${b.nombres} ${b.apellido_paterno} ${b.apellido_materno}`;
-    const dni = b.dni || "";
-    const parentesco = b.parentesco?.nombre || "";
-    const fecha = b.fecha_nacimiento
-    ? new Date(b.fecha_nacimiento).toLocaleDateString("es-PE")
-    : "";
-    const domicilio = b.domicilio || "";
-
-    const h1 = doc.heightOfString(nombre, { width: 140 });
-    const h2 = doc.heightOfString(domicilio, { width: 85 });
-
-    const rowHeight = Math.max(h1, h2, 20);
-
-    doc.rect(startX, y, width, rowHeight).stroke();
-
-    doc.text(nombre, startX + 5, y + 5, { width: 140 });
-    doc.text(dni, colX[1] + 5, y + 5);
-    doc.text(parentesco, colX[2] + 5, y + 5);
-    doc.text(fecha, colX[3] + 5, y + 5);
-    doc.text(domicilio, colX[4] + 5, y + 5, { width: 85 });
-
-    colX.slice(1).forEach(x => {
-      doc.moveTo(x, y).lineTo(x, y + rowHeight).stroke();
-    });
-
-    y += rowHeight;
-  });
-
-  return y;
-}
-    // =========================
-    // PRIMEROS BENEFICIARIOS
-    // =========================
-    y = doc.y;
-
-    doc.rect(startX, y, width, 20).fill("#d9d9d9");
-    doc.fillColor("black").text(
-      "Primeros Beneficiarios: Cónyuge o conviviente y descendientes (*) (**)",
-      startX + 5,
-      y + 5
-    );
-
-    doc.moveDown(1.5);
-
-    y = dibujarTabla(primeros, doc.y);
-
-    doc.moveDown(1.5);
-
-    doc.fontSize(7).text(
-  "(*) A falta de cónyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo mínimo de dos (2) años continuos, conforme al artículo 326 del Código Civil.\n(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
-  startX,
-  doc.y,
-  { width: width, align: "justify" }
-);
-
-    // =========================
-    // SEGUNDOS BENEFICIARIOS
-    // =========================
-    doc.moveDown(2);
-
-    y = doc.y;
-
-    doc.rect(startX, y, width, 20).fill("#d9d9d9");
-    doc.fillColor("black").text(
-      "Solo a falta de los Primeros Beneficiarios: Ascendientes y hermanos menores de dieciocho (18) años (***)",
-      startX + 5,
-      y + 5
-    );
-
-    doc.moveDown(1.5);
-
-    y = dibujarTabla(segundos, doc.y);
-
-    doc.moveDown(0.5);
-
-    doc.fontSize(7).text(
-    "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los artículos 816 y 817 del Código Civil.",
-    startX,
-    doc.y,
-    { width: width, align: "justify" }
-    );
-
-
-    // =========================
-    // FIRMA
-    // =========================
-    doc.moveDown(3);
-
-    doc.text("______________________________", { align: "center" });
-    doc.text("Firma del trabajador(a) asegurado(a)", { align: "center" });
-    doc.text("(Legalizada notarialmente, o por Juez de Paz a falta de notario)", { align: "center", fontSize: 7 });
-
-    doc.moveDown(2);
-
-    doc.text("Lima, " + new Date().toLocaleDateString(), { align: "right" });
-
-    doc.end();
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok:false });
-  }
-});
-
-// ===============================
-//  OBTENER BENEFICIARIOS (PARA MODAL)
-// ===============================
-app.get("/beneficiarios", async (req, res) => {
-  try {
-
-    const { session_id } = req.query;
-
-    const { data, error } = await supabase
-      .from("beneficiarios")
-      .select("nombres, apellido_paterno")
-      .eq("session_id", session_id);
-
-    if (error) {
-      console.error(error);
-      return res.json({ ok: false });
-    }
-
-    res.json({ ok: true, data });
-
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false });
-  }
-});
-
-
-// ===============================
-//  ADMIN (PROTEGIDO)
-// ===============================
-app.get("/admin/colaboradores", checkAdmin, async (req, res) => {
-  const { data } = await supabase
-    .from("colaboradores")
-    .select("*");
-
-  res.json({ ok:true, data });
-});
-
-app.get("/admin/historial/:id", checkAdmin, async (req, res) => {
-
-  const { data: col } = await supabase
-    .from("colaboradores")
-    .select("*")
-    .eq("id", req.params.id)
-    .single();
-
-  const { data: ben } = await supabase
-    .from("beneficiarios")
-    .select("*")
-    .eq("id_colaborador", req.params.id);
-
-  res.json({ ok:true, colaborador:col, beneficiarios:ben });
-
-});
-
-app.get("/admin/total-beneficiarios", checkAdmin, async (req, res) => {
-  const { data } = await supabase
-    .from("beneficiarios")
-    .select("id");
-
-  res.json({ ok:true, total:data.length });
-});
-
-
+// 🔐 CONFIGURACIÓN
 // ===============================
 const PORT = process.env.PORT || 3000;
 
+const supabase = createClient(
+process.env.SUPABASE_URL,
+process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// ===============================
+// 🛡️ MIDDLEWARE
+// ===============================
+app.use(helmet());
+
+app.use(cors({
+origin: ["http://127.0.0.1:5500", "http://localhost:5500", "https://registrovidaley.netlify.app"],
+credentials: true
+}));
+
+app.use(express.json({ limit: "10kb" }));
+app.use(cookieParser());
+
+const limiter = rateLimit({
+windowMs: 15 * 60 * 1000,
+max: 100
+});
+app.use(limiter);
+
+// ===============================
+// 🔑 JWT
+// ===============================
+function generarToken(user){
+return jwt.sign(
+{ id: user.id, rol: user.rol },
+process.env.JWT_SECRET,
+{ expiresIn: "2h" }
+);
+}
+
+function verificarToken(req, res, next){
+const token = req.cookies.token;
+
+if(!token){
+return res.status(401).json({ ok:false, msg:"No autenticado" });
+}
+
+try{
+const decoded = jwt.verify(token, process.env.JWT_SECRET);
+req.user = decoded;
+next();
+}catch(e){
+return res.status(401).json({ ok:false, msg:"Token inválido" });
+}
+}
+
+function soloAdmin(req, res, next){
+if(req.user.rol !== "admin"){
+return res.status(403).json({ ok:false, msg:"Acceso restringido" });
+}
+next();
+}
+
+// ===============================
+// 🧾 LOG AUDITORÍA
+// ===============================
+async function logAuditoria(usuario, accion, detalle){
+try{
+await supabase.from("logs_auditoria").insert([{
+usuario,
+accion,
+detalle,
+fecha: new Date()
+}]);
+}catch(e){
+console.error("Error log auditoria", e);
+}
+}
+
+// ===============================
+// 🔐 AUTH
+// ===============================
+app.post("/auth/login", async (req, res) => {
+try{
+const { username, password } = req.body;
+
+
+const { data: user } = await supabase
+  .from("usuarios")
+  .select("*")
+  .eq("username", username)
+  .single();
+
+if(!user) return res.status(401).json({ ok:false });
+
+const valido = await bcrypt.compare(password, user.password);
+
+if(!valido) return res.status(401).json({ ok:false });
+
+const token = generarToken(user);
+
+res.cookie("token", token, {
+  httpOnly: true,
+  secure: false, // ⚠️ en local debe ser false
+  sameSite: "lax"
+});
+
+await logAuditoria(user.username, "LOGIN", "Inicio sesión");
+
+res.json({ ok:true });
+
+
+}catch(e){
+console.error(e);
+res.status(500).json({ ok:false });
+}
+});
+
+app.post("/auth/logout", (req, res) => {
+res.clearCookie("token");
+res.json({ ok:true });
+});
+
+app.get("/auth/status", (req, res) => {
+const token = req.cookies.token;
+
+if(!token) return res.json({ authenticated:false });
+
+try{
+jwt.verify(token, process.env.JWT_SECRET);
+res.json({ authenticated:true });
+}catch{
+res.json({ authenticated:false });
+}
+});
+
+// ===============================
+// TEST
+// ===============================
+app.get("/", (req, res) => {
+res.send("Servidor funcionando 🚀");
+});
+
+// ===============================
+// 👤 COLABORADOR
+// ===============================
+app.get("/colaborador/:dni", verificarToken, async (req, res) => {
+
+if(!/^\d{8}$/.test(req.params.dni)){
+return res.status(400).json({ ok:false, msg:"DNI inválido" });
+}
+
+const { data, error } = await supabase
+.from("colaboradores")
+.select('*, genero:genero(genero)')
+.eq("dni", req.params.dni)
+.single();
+
+if(error || !data) return res.json({ ok:false });
+
+await logAuditoria(req.user.id, "CONSULTA_DNI", req.params.dni);
+
+res.json({ ok:true, data });
+});
+
+// ===============================
+// 👨‍👩‍👧 GUARDAR BENEFICIARIO
+// ===============================
+app.post("/guardar-beneficiario", verificarToken, async (req, res) => {
+
+const data = req.body;
+
+if(!data.id_colaborador || !data.dni){
+return res.status(400).json({ ok:false });
+}
+
+const { error } = await supabase
+.from("beneficiarios")
+.insert([data]);
+
+if(error){
+console.error(error);
+return res.json({ ok:false });
+}
+
+await logAuditoria(req.user.id, "REGISTRO_BENEFICIARIO", data.dni);
+
+res.json({ ok:true });
+});
+
+// ===============================
+// 📄 GENERAR PDF
+// ===============================
+app.post("/generar-pdf", verificarToken, async (req, res) => {
+try{
+
+const { id_colaborador, session_id } = req.body;
+
+const { data: col } = await supabase
+  .from("colaboradores")
+  .select("*")
+  .eq("id", id_colaborador)
+  .single();
+
+const { data: beneficiarios } = await supabase
+  .from("beneficiarios")
+  .select('*, parentesco:parentescos(nombre)')
+  .eq("id_colaborador", id_colaborador)
+  .eq("session_id", session_id);
+
+const primeros = beneficiarios.filter(b => {
+  const p = (b.parentesco?.nombre || "").toLowerCase();
+  return p.includes("conyuge") || p.includes("cónyuge") || p.includes("hijo") || p.includes("conviviente");
+});
+
+const segundos = beneficiarios.filter(b => {
+  const p = (b.parentesco?.nombre || "").toLowerCase();
+  return p.includes("padre") || p.includes("madre") || p.includes("hermano");
+});
+
+const doc = new PDFDocument({ margin: 40 });
+let buffers = [];
+
+doc.on("data", buffers.push.bind(buffers));
+
+doc.on("end", async () => {
+
+  const pdfBuffer = Buffer.concat(buffers);
+  const fileName = "vida_" + Date.now() + ".pdf";
+
+  await supabase.storage
+    .from("pdfs")
+    .upload(fileName, pdfBuffer, {
+      contentType: "application/pdf",
+      upsert: true
+    });
+
+  const { data } = await supabase.storage
+    .from("pdfs")
+    .createSignedUrl(fileName, 300);
+
+  res.json({ ok:true, url:data.signedUrl });
+});
+
+// CONTENIDO PDF
+doc.fontSize(12).text("ANEXO", { align: "center" });
+doc.moveDown(0.5);
+
+doc.fontSize(10).text(
+  "FORMATO REFERENCIAL DE DECLARACIÓN JURADA DE BENEFICIARIOS DEL SEGURO DE VIDA",
+  { align: "center" }
+);
+
+doc.moveDown(1);
+
+doc.text(`Trabajador: ${col.nombres} ${col.apellido_paterno} ${col.apellido_materno}`);
+doc.text(`DNI: ${col.dni}`);
+
+doc.moveDown(1);
+
+doc.text("PRIMEROS BENEFICIARIOS:");
+primeros.forEach(b => {
+  doc.text(`- ${b.nombres} ${b.apellido_paterno}`);
+});
+
+doc.moveDown(1);
+
+doc.text("SEGUNDOS BENEFICIARIOS:");
+segundos.forEach(b => {
+  doc.text(`- ${b.nombres} ${b.apellido_paterno}`);
+});
+
+doc.end();
+
+await logAuditoria(req.user.id, "GENERAR_PDF", id_colaborador);
+
+
+}catch(err){
+console.error(err);
+res.status(500).json({ ok:false });
+}
+});
+
+// ===============================
+// 👁️ CONSULTAR BENEFICIARIOS
+// ===============================
+app.get("/beneficiarios", verificarToken, async (req, res) => {
+
+const { session_id } = req.query;
+
+const { data } = await supabase
+.from("beneficiarios")
+.select("nombres, apellido_paterno")
+.eq("session_id", session_id);
+
+res.json({ ok:true, data });
+});
+
+// ===============================
+// 🛠️ ADMIN
+// ===============================
+app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
+const { data } = await supabase.from("colaboradores").select("*");
+res.json({ ok:true, data });
+});
+
+app.get("/admin/historial/:id", verificarToken, soloAdmin, async (req, res) => {
+
+const { data: col } = await supabase.from("colaboradores").select("*").eq("id", req.params.id).single();
+
+const { data: ben } = await supabase.from("beneficiarios").select("*").eq("id_colaborador", req.params.id);
+
+res.json({ ok:true, colaborador:col, beneficiarios:ben });
+});
+
+// ===============================
+// 🗑️ ELIMINAR DATOS
+// ===============================
+app.delete("/eliminar-datos/:id", verificarToken, soloAdmin, async (req, res) => {
+
+await supabase.from("beneficiarios").delete().eq("id_colaborador", req.params.id);
+await supabase.from("colaboradores").delete().eq("id", req.params.id);
+
+await logAuditoria(req.user.id, "ELIMINACION_DATOS", req.params.id);
+
+res.json({ ok:true });
+});
+
+// ===============================
 app.listen(PORT, () => {
-  console.log("Servidor corriendo en " + PORT + " 🚀");
+console.log("Servidor seguro corriendo en " + PORT);
 });

@@ -163,15 +163,19 @@ const API = resolveApiBase();
 // =====================
 // LOGIN
 // =====================
-async function login(){
-  try{
+    async function login(){
+    try{
     const password = document.getElementById("pass").value;
 
+    
     const r = await fetch(API + "/auth/login", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       credentials: "include",
-      body: JSON.stringify({ password })
+      body: JSON.stringify({
+        username: "admin",
+        password: password
+      })
     });
 
     const res = await r.json();
@@ -183,12 +187,14 @@ async function login(){
     }else{
       alert("Clave incorrecta");
     }
+    
 
-  }catch(e){
+    }catch(e){
     alert("Error de conexión");
     console.error(e);
-  }
-}
+    }
+    }
+
 
 // =====================
 // LOGOUT
@@ -206,42 +212,53 @@ async function logout(){
 // DASHBOARD
 // =====================
 async function dashboard(){
-  try{
-    const col = await fetch(API + "/admin/colaboradores", {
-      credentials: "include"
-    }).then(r=>r.json());
+try{
 
-    const ben = await fetch(API + "/admin/total-beneficiarios", {
-      credentials: "include"
-    }).then(r=>r.json());
 
-    document.getElementById("cards").innerHTML = `
-      <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
-      <div class="card">👪 Beneficiarios: ${ben.total || 0}</div>
-    `;
-  }catch(e){
-    console.error(e);
-    alert("Error cargando dashboard");
-  }
+const col = await fetch(API + "/admin/colaboradores", {
+  credentials: "include"
+}).then(r=>r.json());
+
+document.getElementById("cards").innerHTML = `
+  <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
+`;
+
+
+}catch(e){
+console.error(e);
+alert("Error cargando dashboard");
 }
+}
+
 
 // =====================
 // LISTAR
 // =====================
 async function listar(){
+  console.log("LISTAR EJECUTADO"); // 
+
   const res = await fetch(API + "/admin/colaboradores", {
     credentials: "include"
   }).then(r=>r.json());
-  console.log(res.data);
 
-  let html = "<table>";
+  console.log(res); // 
+
+  let html = `
+    <table>
+      <tr>
+        <th>DNI</th>
+        <th>Nombres</th>
+        <th>Acción</th>
+      </tr>
+  `;
 
   res.data.forEach(c => {
     html += `
       <tr>
         <td>${c.dni}</td>
-        <td>${c.nombres}</td>
-        <td><button onclick="ver(${c.id})">Ver</button></td>
+        <td>${c.nombres} ${c.apellido_paterno} ${c.apellido_materno}</td>
+        <td> <button onclick="ver(${c.id})">Ver</button>
+        <button onclick="eliminar(${c.id})" style="color:red">Eliminar</button> </td>
       </tr>
     `;
   });
@@ -255,35 +272,65 @@ async function listar(){
 // HISTORIAL
 // =====================
 async function ver(id){
-  const res = await fetch(API + "/admin/historial/" + id, {
-    credentials: "include"
-  }).then(r=>r.json());
+const res = await fetch(API + "/admin/historial/" + id, {
+credentials: "include"
+}).then(r=>r.json());
 
-  let html = "<h3>Historial</h3>";
+let html = "<h3>Historial</h3>";
 
-  res.beneficiarios.forEach(b => {
-    html += `<div>• ${b.nombres}</div>`;
-  });
-
-  document.getElementById("detalle").innerHTML = html;
+if(!res.beneficiarios || res.beneficiarios.length === 0){
+html += "<div>No tiene beneficiarios registrados</div>";
+}else{
+res.beneficiarios.forEach(b => {
+html += `<div>• ${b.nombres}</div>`;
+});
 }
+
+document.getElementById("detalle").innerHTML = html;
+}
+
 
 // =====================
 // BUSCAR
 // =====================
-async function buscar(e){
-  if(e.key !== "Enter") return;
+    async function buscar(e){
+    if(e.key !== "Enter") return;
 
-  const dni = e.target.value;
+    const dni = e.target.value;
 
-  const res = await fetch(API + "/colaborador/" + dni).then(r=>r.json());
+    const r = await fetch(API + "/colaborador/" + dni, {
+    credentials: "include"
+    });
 
-  if(!res.ok){
-    alert("No encontrado");
+    const res = await r.json();
+
+    if(!res.ok){
+    alert("DNI no registrado o sin datos");
     return;
-  }
+    }
 
-  ver(res.data.id);
+    ver(res.data.id);
+    }
+
+    // ===============================
+// 🗑️ ELIMINAR
+// ===============================
+  async function eliminar(id){
+  if(!confirm("¿Seguro que deseas eliminar este colaborador?")) return;
+
+  const r = await fetch(API + "/eliminar-datos/" + id, {
+  method: "DELETE",
+  credentials: "include"
+  });
+
+  const res = await r.json();
+
+  if(res.ok){
+  alert("Eliminado correctamente");
+  listar();
+  }else{
+  alert("Error al eliminar");
+  }
 }
 
 </script>
