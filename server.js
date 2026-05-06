@@ -183,7 +183,7 @@ res.send("Servidor funcionando 🚀");
 // ===============================
 // COLABORADOR
 // ===============================
-app.get("/colaborador/:dni", verificarToken, async (req, res) => {
+app.get("/colaborador/:dni", async (req,res)=>{
 
 if(!/^\d{8}$/.test(req.params.dni)){
 return res.status(400).json({ ok:false });
