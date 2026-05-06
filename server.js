@@ -310,6 +310,12 @@ app.get("/debug/info", async (req,res)=>{
 });
 
 
+app.get("/debug/key", (req,res)=>{
+  res.json({
+    key: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0,20)
+  });
+});
+
 // ===============================
 app.listen(PORT, () => {
 console.log("Servidor corriendo en " + PORT);
