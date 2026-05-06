@@ -298,6 +298,18 @@ await supabase.from("colaboradores").delete().eq("id", req.params.id);
 res.json({ ok:true });
 });
 
+
+app.get("/debug/info", async (req,res)=>{
+  const { data } = await supabase.from("colaboradores").select("*");
+
+  res.json({
+    url: process.env.SUPABASE_URL,
+    registros: data?.length || 0,
+    data
+  });
+});
+
+
 // ===============================
 app.listen(PORT, () => {
 console.log("Servidor corriendo en " + PORT);
