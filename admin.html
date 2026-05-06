@@ -226,22 +226,27 @@ async function logout(){
 // DASHBOARD
 // =====================
 async function dashboard(){
-try{
+  try{
 
+    const r = await fetch(API + "/admin/colaboradores", {
+      credentials: "include"
+    });
 
-const col = await fetch(API + "/admin/colaboradores", {
-  credentials: "include"
-}).then(r=>r.json());
+    const col = await r.json();
 
-document.getElementById("cards").innerHTML = `
-  <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
-`;
+    if(!r.ok || !col.ok){
+      document.getElementById("cards").innerHTML = `<div class="card">⚠️ No autorizado</div>`;
+      return;
+    }
 
+    document.getElementById("cards").innerHTML = `
+      <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
+    `;
 
-}catch(e){
-console.error(e);
-alert("Error cargando dashboard");
-}
+  }catch(e){
+    console.error(e);
+    document.getElementById("cards").innerHTML = `<div class="card">Error conexión</div>`;
+  }
 }
 
 
@@ -249,37 +254,62 @@ alert("Error cargando dashboard");
 // LISTAR
 // =====================
 async function listar(){
-  console.log("LISTAR EJECUTADO"); // 
+  console.log("LISTAR EJECUTADO");
 
-  const res = await fetch(API + "/admin/colaboradores", {
-    credentials: "include"
-  }).then(r=>r.json());
+  try{
 
-  console.log(res); // 
+    const r = await fetch(API + "/admin/colaboradores", {
+      credentials: "include"
+    });
 
-  let html = `
-    <table>
-      <tr>
-        <th>DNI</th>
-        <th>Nombres</th>
-        <th>Acción</th>
-      </tr>
-  `;
+    console.log("STATUS:", r.status);
 
-  res.data.forEach(c => {
-    html += `
-      <tr>
-        <td>${c.dni}</td>
-        <td>${c.nombres} ${c.apellido_paterno} ${c.apellido_materno}</td>
-        <td> <button onclick="ver(${c.id})">Ver</button>
-        <button onclick="eliminar(${c.id})" style="color:red">Eliminar</button> </td>
-      </tr>
+    const res = await r.json();
+
+    console.log("RESPUESTA:", res);
+
+    // 🔴 VALIDACIÓN CLAVE
+    if(!r.ok || !res.ok){
+      document.getElementById("tabla").innerHTML = "No autorizado o sesión expirada";
+      return;
+    }
+
+    // 🟡 SIN DATOS
+    if(!res.data || res.data.length === 0){
+      document.getElementById("tabla").innerHTML = "No hay colaboradores registrados";
+      return;
+    }
+
+    let html = `
+      <table>
+        <tr>
+          <th>DNI</th>
+          <th>Nombres</th>
+          <th>Acción</th>
+        </tr>
     `;
-  });
 
-  html += "</table>";
+    res.data.forEach(c => {
+      html += `
+        <tr>
+          <td>${c.dni}</td>
+          <td>${c.nombres} ${c.apellido_paterno} ${c.apellido_materno}</td>
+          <td>
+            <button onclick="ver(${c.id})">Ver</button>
+            <button onclick="eliminar(${c.id})" style="color:red">Eliminar</button>
+          </td>
+        </tr>
+      `;
+    });
 
-  document.getElementById("tabla").innerHTML = html;
+    html += "</table>";
+
+    document.getElementById("tabla").innerHTML = html;
+
+  }catch(e){
+    console.error("ERROR LISTAR:", e);
+    document.getElementById("tabla").innerHTML = "Error de conexión con el servidor";
+  }
 }
 
 // =====================
