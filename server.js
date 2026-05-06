@@ -115,8 +115,8 @@ const token = generarToken(user);
 
 res.cookie("token", token, {
   httpOnly: true,
-  secure: false, // ⚠️ en local debe ser false
-  sameSite: "lax"
+  secure: true, // 
+  sameSite: "none"
 });
 
 await logAuditoria(user.username, "LOGIN", "Inicio sesión");
