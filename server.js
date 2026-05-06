@@ -184,22 +184,30 @@ res.send("Servidor funcionando 🚀");
 // COLABORADOR
 // ===============================
 app.get("/colaborador/:dni", async (req,res)=>{
+  try{
 
-if(!/^\d{8}$/.test(req.params.dni)){
-return res.status(400).json({ ok:false });
-}
+    const dni = req.params.dni;
+    console.log("BUSCANDO DNI:", dni);
 
-const { data } = await supabase
-.from("colaboradores")
-.select('*, genero:genero(genero)')
-.eq("dni", req.params.dni)
-.single();
+    const { data, error } = await supabase
+      .from("colaboradores")
+      .select("*")
+      .eq("dni", dni)
+      .single();
 
-if(!data) return res.json({ ok:false });
+    console.log("DATA:", data);
+    console.log("ERROR:", error);
 
-await logAuditoria(req.user.id, "CONSULTA_DNI", req.params.dni);
+    if(error || !data){
+      return res.status(404).json({ ok:false });
+    }
 
-res.json({ ok:true, data });
+    res.json({ ok:true, data });
+
+  }catch(e){
+    console.error("ERROR SERVIDOR:", e);
+    res.status(500).json({ ok:false, error: e.message });
+  }
 });
 
 // ===============================
