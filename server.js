@@ -242,56 +242,103 @@ app.post("/guardar-beneficiario", async (req, res) => {
 // ===============================
 // GENERAR PDF
 // ===============================
-app.post("/generar-pdf", async (req, res) => {
-try{
-const { id_colaborador, session_id } = req.body;
+  app.post("/generar-pdf", async (req, res) => {
+    try{
 
+      const { id_colaborador } = req.body;
 
-const { data: col } = await supabase
-  .from("colaboradores")
-  .select("*")
-  .eq("id", id_colaborador)
-  .single();
+      console.log("GENERAR PDF - ID:", id_colaborador);
 
-const { data: beneficiarios } = await supabase
-  .from("beneficiarios")
-  .select('*, parentesco:parentescos(nombre)')
-  .eq("id_colaborador", id_colaborador)
-  .eq("session_id", session_id);
+      // 🔹 1. OBTENER COLABORADOR
+      const { data: col, error: errorCol } = await supabase
+        .from("colaboradores")
+        .select("*")
+        .eq("id", id_colaborador)
+        .maybeSingle();
 
-const doc = new PDFDocument();
-let buffers = [];
+      if(errorCol || !col){
+        console.error("ERROR COLABORADOR:", errorCol);
+        return res.status(400).json({ ok:false, msg:"No colaborador" });
+      }
 
-doc.on("data", buffers.push.bind(buffers));
+      // 🔹 2. OBTENER BENEFICIARIOS
+      const { data: beneficiarios, error: errorBen } = await supabase
+        .from("beneficiarios")
+        .select("*")
+        .eq("id_colaborador", id_colaborador);
 
-doc.on("end", async () => {
-  const pdfBuffer = Buffer.concat(buffers);
-  const fileName = "vida_" + Date.now() + ".pdf";
+      console.log("BENEFICIARIOS:", beneficiarios);
 
-  await supabase.storage.from("pdfs").upload(fileName, pdfBuffer, {
-    contentType: "application/pdf",
-    upsert: true
+      if(errorBen){
+        console.error("ERROR BENEFICIARIOS:", errorBen);
+        return res.status(500).json({ ok:false });
+      }
+
+      if(!beneficiarios || beneficiarios.length === 0){
+        return res.status(400).json({ ok:false, msg:"No beneficiarios" });
+      }
+
+      // 🔹 3. CREAR PDF
+      const doc = new PDFDocument();
+      let buffers = [];
+
+      doc.on("data", buffers.push.bind(buffers));
+
+      doc.on("end", async () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        const fileName = "vida_" + Date.now() + ".pdf";
+
+        // 🔹 SUBIR A SUPABASE STORAGE
+        const { error: uploadError } = await supabase.storage
+          .from("pdfs")
+          .upload(fileName, pdfBuffer, {
+            contentType: "application/pdf",
+            upsert: true
+          });
+
+        if(uploadError){
+          console.error("ERROR UPLOAD:", uploadError);
+          return res.status(500).json({ ok:false });
+        }
+
+        // 🔹 GENERAR URL TEMPORAL
+        const { data } = await supabase.storage
+          .from("pdfs")
+          .createSignedUrl(fileName, 300);
+
+        res.json({ ok:true, url: data.signedUrl });
+      });
+
+      // ===============================
+      // ✍️ CONTENIDO PDF
+      // ===============================
+
+      doc.fontSize(16).text("DECLARACIÓN VIDA LEY", { align: "center" });
+      doc.moveDown();
+
+      doc.fontSize(12).text(`Trabajador: ${col.nombres}`);
+      doc.text(`DNI: ${col.dni}`);
+      doc.text(`Apellido: ${col.apellido_paterno} ${col.apellido_materno}`);
+      doc.moveDown();
+
+      doc.text("BENEFICIARIOS:");
+      doc.moveDown();
+
+      beneficiarios.forEach((b, i) => {
+        doc.text(`${i+1}. ${b.nombres}`);
+        doc.text(`   DNI: ${b.dni}`);
+        doc.text(`   Parentesco: ${b.parentesco || "-"}`);
+        doc.text(`   Dirección: ${b.direccion || "-"}`);
+        doc.moveDown();
+      });
+
+      doc.end();
+
+    }catch(e){
+      console.error("ERROR PDF:", e);
+      res.status(500).json({ ok:false });
+    }
   });
-
-  const { data } = await supabase.storage
-    .from("pdfs")
-    .createSignedUrl(fileName, 300);
-
-  res.json({ ok:true, url:data.signedUrl });
-});
-
-doc.text(`Trabajador: ${col.nombres}`);
-beneficiarios.forEach(b => {
-  doc.text(`- ${b.nombres}`);
-});
-
-doc.end();
-
-
-}catch{
-res.status(500).json({ ok:false });
-}
-});
 
 // ===============================
 // BENEFICIARIOS
