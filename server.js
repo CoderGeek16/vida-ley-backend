@@ -101,7 +101,7 @@ app.post("/auth/login", async (req, res) => {
 try{
 const { username, password } = req.body;
 
-```
+
 console.log("LOGIN INTENTO:", username, password);
 
 const { data: user, error } = await supabase
@@ -141,7 +141,7 @@ await logAuditoria(user.username, "LOGIN", "Inicio sesión");
 console.log("✅ LOGIN OK");
 
 res.json({ ok:true });
-```
+
 
 }catch(e){
 console.error("ERROR LOGIN:", e);
@@ -227,7 +227,7 @@ app.post("/generar-pdf", verificarToken, async (req, res) => {
 try{
 const { id_colaborador, session_id } = req.body;
 
-```
+
 const { data: col } = await supabase
   .from("colaboradores")
   .select("*")
@@ -267,7 +267,7 @@ beneficiarios.forEach(b => {
 });
 
 doc.end();
-```
+
 
 }catch{
 res.status(500).json({ ok:false });
