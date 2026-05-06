@@ -345,11 +345,14 @@ app.post("/guardar-beneficiario", async (req, res) => {
 // ===============================
 app.get("/beneficiarios", verificarToken, async (req, res) => {
 
-const { data } = await supabase
-.from("beneficiarios")
-.select("*");
+  const id_colaborador = req.query.id_colaborador;
 
-res.json({ ok:true, data });
+  const { data } = await supabase
+    .from("beneficiarios")
+    .select("*")
+    .eq("id_colaborador", id_colaborador);
+
+  res.json({ ok:true, data });
 });
 
 // ===============================
