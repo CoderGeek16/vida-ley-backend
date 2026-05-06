@@ -162,37 +162,52 @@ const API = "https://vida-ley-backend.onrender.com";
 // =====================
 // LOGIN
 // =====================
-    async function login(){
-    try{
-    const password = document.getElementById("pass").value;
+   async function login(){
+try{
+const password = document.getElementById("pass").value;
 
-    
-    const r = await fetch(API + "/auth/login", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        username: "admin",
-        password: password
-      })
-    });
 
-    const res = await r.json();
+const r = await fetch(API + "/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    username: "admin",
+    password: password
+  })
+});
 
-    if(res.ok){
-      document.getElementById("login").style.display = "none";
-      document.getElementById("panel").style.display = "block";
-      dashboard();
-    }else{
-      alert("Clave incorrecta");
-    }
-    
+// DEBUG HTTP
+console.log("STATUS HTTP:", r.status);
 
-    }catch(e){
-    alert("Error de conexión");
-    console.error(e);
-    }
-    }
+const res = await r.json();
+
+// DEBUG RESPUESTA BACKEND
+console.log("RESPUESTA LOGIN:", res);
+
+// VALIDACIÓN REAL
+if(!r.ok || !res.ok){
+  alert("Clave incorrecta");
+  return;
+}
+
+console.log("LOGIN OK - entrando al panel");
+
+document.getElementById("login").style.display = "none";
+document.getElementById("panel").style.display = "block";
+
+// 👇 pequeño delay para asegurar cookie
+setTimeout(() => {
+  dashboard();
+}, 300);
+
+
+}catch(e){
+console.error("ERROR LOGIN:", e);
+alert("Error de conexión");
+}
+}
+
 
 
 // =====================

@@ -1,9 +1,5 @@
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
-async function generar(){
-  const password = "Wishmaster3103";
-  const hash = await bcrypt.hash(password, 10);
+bcrypt.hash("Admin123", 10).then(hash => {
   console.log(hash);
-}
-
-generar();
+});

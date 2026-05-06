@@ -28,8 +28,10 @@ process.env.SUPABASE_SERVICE_ROLE_KEY
 app.use(helmet());
 
 app.use(cors({
-origin: true,
-credentials: true
+  origin: [
+    "https://registrovidaley.netlify.app"
+  ],
+  credentials: true
 }));
 
 app.use(express.json({ limit: "10kb" }));
@@ -115,7 +117,7 @@ const token = generarToken(user);
 
 res.cookie("token", token, {
   httpOnly: true,
-  secure: true, // 
+  secure: true,
   sameSite: "none"
 });
 
@@ -339,6 +341,18 @@ await logAuditoria(req.user.id, "ELIMINACION_DATOS", req.params.id);
 
 res.json({ ok:true });
 });
+
+app.get("/debug/usuarios", async (req, res) => {
+const { data, error } = await supabase
+.from("usuarios")
+.select("*");
+
+console.log("USUARIOS DESDE BACKEND:", data);
+
+res.json({ data, error });
+});
+
+
 
 // ===============================
 app.listen(PORT, () => {
