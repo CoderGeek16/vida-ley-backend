@@ -786,7 +786,7 @@
             Ingresa tu DNI para continuar con el registro de tus beneficiarios.
           </p>
 
-          <div id="access_gate" class="access-box screen-hidden">
+          <div id="access_gate" class="access-box screen-hidden" style="display:none;">
             <div class="search-title">
               <i class="bi bi-shield-lock"></i>
               Acceso protegido
@@ -965,7 +965,7 @@
   let autenticado = false;
   let session_id = crypto.randomUUID();
 
-  const API = "https://vida-ley-backend.onrender.com";
+  const API = "http://localhost:3000";
   const accessGate = document.getElementById("access_gate");
   const accessPassword = document.getElementById("access_password");
   const accessStatus = document.getElementById("access_status");
@@ -1378,7 +1378,6 @@
 
       if(res.ok){
         accessPassword.value = "";
-        alternarAcceso(true);
         accessStatus.className = "status-line ok";
         accessStatus.innerText = "Acceso concedido.";
         setTimeout(() => {
@@ -1441,12 +1440,11 @@
     }
   }
 
-  actualizarResumen();
-  inputDni.value = soloNumeros(inputDni.value, 8);
-  inputDni.classList.add("dni-only");
-  
-  cargarEstadoAcceso();
+actualizarResumen();
+inputDni.value = soloNumeros(inputDni.value, 8);
+inputDni.classList.add("dni-only");
 
+alternarAcceso(true);
   // ===============================
 // MODAL CONFIRMACION
 // ===============================
@@ -1557,6 +1555,9 @@ async function generarPDF() {
   }
 }
 
+authEnabled = false;
+alternarAcceso(true);
+reiniciarInicio();
 
 </script>
 

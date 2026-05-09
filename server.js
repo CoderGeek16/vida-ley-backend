@@ -29,7 +29,9 @@ app.use(helmet());
 
 app.use(cors({
   origin: [
-     "https://registrovidaley.netlify.app"
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "https://registrovidaley.netlify.app"
   ],
   credentials: true
 }));
@@ -101,11 +103,14 @@ const { password } = req.body;
 
 console.log("LOGIN INTENTO:", "admin");
 
-const { data: user, error } = await supabase
-  .from("usuarios")
-  .select("*")
-  .eq("username", "admin")
-  .single();
+const { data, error } = await supabase
+.from("colaboradores")
+.select("*")
+.eq("dni", req.params.dni)
+.maybeSingle();
+
+console.log(data);
+console.log(error);
 
 console.log("USUARIO BD:", user);
 
@@ -149,10 +154,14 @@ res.status(500).json({ ok:false });
 
 // ===============================
 app.post("/auth/logout", (req, res) => {
+
 res.clearCookie("token", {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+});
+res.json({ ok:true });
+
 });
 
 app.get("/auth/status", (req, res) => {
@@ -195,7 +204,7 @@ res.send("Servidor funcionando 🚀");
 // ===============================
 // COLABORADOR
 // ===============================
-app.get("/colaborador/:dni", verificarToken, async (req,res)=>{
+app.get("/colaborador/:dni", async (req,res)=>{
   try{
 
     const dni = req.params.dni;
@@ -231,7 +240,7 @@ app.get("/colaborador/:dni", verificarToken, async (req,res)=>{
 // ===============================
 // GUARDAR BENEFICIARIO
 // ===============================
-app.post("/guardar-beneficiario", verificarToken, async (req, res) => {
+app.post("/guardar-beneficiario", async (req, res) => {
   try{
 
     const data = req.body;
@@ -260,7 +269,7 @@ app.post("/guardar-beneficiario", verificarToken, async (req, res) => {
 // ===============================
 // GENERAR PDF
 // ===============================
-  app.post("/generar-pdf", verificarToken, async (req, res) => {
+  app.post("/generar-pdf", async (req, res) => {
     try{
 
       const { id_colaborador } = req.body;
@@ -361,7 +370,7 @@ app.post("/guardar-beneficiario", verificarToken, async (req, res) => {
 // ===============================
 // BENEFICIARIOS
 // ===============================
-app.get("/beneficiarios", verificarToken, async (req, res) => {
+app.get("/beneficiarios", async (req, res) => {
 
   const id_colaborador = req.query.id_colaborador;
 
@@ -377,22 +386,32 @@ app.get("/beneficiarios", verificarToken, async (req, res) => {
 // ADMIN
 // ===============================
 app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
-const { data } = await supabase.from("colaboradores").select("*");
-res.json({ ok:true, data });
+  const { data } = await supabase
+    .from("colaboradores")
+    .select("*");
+
+  res.json({ ok:true, data });
 });
 
 app.delete("/eliminar-datos/:id", verificarToken, soloAdmin, async (req, res) => {
 
-await supabase.from("beneficiarios").delete().eq("id_colaborador", req.params.id);
-await supabase.from("colaboradores").delete().eq("id", req.params.id);
+  await supabase
+    .from("beneficiarios")
+    .delete()
+    .eq("id_colaborador", req.params.id);
 
-res.json({ ok:true });
+
+  await supabase
+    .from("colaboradores")
+    .delete()
+    .eq("id", req.params.id);
+
+  res.json({ ok:true });
+
 });
 
-
-
-
-
+// ===============================
+// START SERVER
 // ===============================
 app.listen(PORT, () => {
 console.log("Servidor corriendo en " + PORT);
