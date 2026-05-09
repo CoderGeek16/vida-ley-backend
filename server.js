@@ -28,7 +28,9 @@ const supabase = createClient(
 app.use(helmet());
 
 app.use(cors({
-  origin: true,
+  origin: [
+     "https://vida-ley-frontend.onrender.com"
+  ],
   credentials: true
 }));
 
@@ -95,15 +97,14 @@ console.error("Error log auditoria", e);
 // ===============================
 app.post("/auth/login", async (req, res) => {
 try{
-const { username, password } = req.body;
+const { password } = req.body;
 
-
-console.log("LOGIN INTENTO:", username, password);
+console.log("LOGIN INTENTO:", "admin");
 
 const { data: user, error } = await supabase
   .from("usuarios")
   .select("*")
-  .eq("username", username)
+  .eq("username", "admin")
   .single();
 
 console.log("USUARIO BD:", user);
@@ -129,7 +130,8 @@ const token = generarToken(user);
 res.cookie("token", token, {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  maxAge: 1000 * 60 * 60 * 2,
 });
 
 await logAuditoria(user.username, "LOGIN", "Inicio sesión");
@@ -152,26 +154,34 @@ res.json({ ok:true });
 });
 
 app.get("/auth/status", (req, res) => {
+
 const token = req.cookies.token;
 
-if(!token) return res.json({ authenticated:false });
+if(!token){
+  return res.json({
+    authenticated:false,
+    authEnabled:true
+  });
+}
 
 try{
-jwt.verify(token, process.env.JWT_SECRET);
-res.json({ authenticated:true });
+  jwt.verify(token, process.env.JWT_SECRET);
+
+  res.json({
+    authenticated:true,
+    authEnabled:true
+  });
+
 }catch{
-res.json({ authenticated:false });
+
+  res.json({
+    authenticated:false,
+    authEnabled:true
+  });
+
 }
 });
 
-// ===============================
-// DEBUG BD
-// ===============================
-app.get("/debug/usuarios", async (req, res) => {
-const { data } = await supabase.from("usuarios").select("*");
-console.log("DEBUG USUARIOS:", data);
-res.json(data);
-});
 
 // ===============================
 // TEST
@@ -183,10 +193,16 @@ res.send("Servidor funcionando 🚀");
 // ===============================
 // COLABORADOR
 // ===============================
-app.get("/colaborador/:dni", async (req,res)=>{
+app.get("/colaborador/:dni", verificarToken, async (req,res)=>{
   try{
 
     const dni = req.params.dni;
+    if(!/^\d{8}$/.test(dni)){
+  return res.status(400).json({
+    ok:false,
+    msg:"DNI inválido"
+  });
+}
     console.log("BUSCANDO DNI:", dni);
 
     const { data, error } = await supabase
@@ -213,7 +229,7 @@ app.get("/colaborador/:dni", async (req,res)=>{
 // ===============================
 // GUARDAR BENEFICIARIO
 // ===============================
-app.post("/guardar-beneficiario", async (req, res) => {
+app.post("/guardar-beneficiario", verificarToken, async (req, res) => {
   try{
 
     const data = req.body;
@@ -242,7 +258,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
 // ===============================
 // GENERAR PDF
 // ===============================
-  app.post("/generar-pdf", async (req, res) => {
+  app.post("/generar-pdf", verificarToken, async (req, res) => {
     try{
 
       const { id_colaborador } = req.body;
@@ -305,7 +321,7 @@ app.post("/guardar-beneficiario", async (req, res) => {
         const { data } = await supabase.storage
           .from("pdfs")
           .createSignedUrl(fileName, 300);
-
+        console.log("PDF URL:", data.signedUrl);
         res.json({ ok:true, url: data.signedUrl });
       });
 
@@ -372,22 +388,8 @@ res.json({ ok:true });
 });
 
 
-app.get("/debug/info", async (req,res)=>{
-  const { data } = await supabase.from("colaboradores").select("*");
-
-  res.json({
-    url: process.env.SUPABASE_URL,
-    registros: data?.length || 0,
-    data
-  });
-});
 
 
-app.get("/debug/key", (req,res)=>{
-  res.json({
-    key: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0,20)
-  });
-});
 
 // ===============================
 app.listen(PORT, () => {

@@ -1152,7 +1152,9 @@
   setBusquedaLoading(true);
 
   try{
-    const r = await fetch(API + "/colaborador/" + dni);
+    const r = await fetch(API + "/colaborador/" + dni, {
+      credentials: "include"
+    });
     const d = await leerJSON(r);
 
     if(r.status === 401){
@@ -1312,6 +1314,7 @@
       const r = await fetch(API + "/guardar-beneficiario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+          credentials: "include",
         body: JSON.stringify(data)
       });
 
@@ -1349,30 +1352,6 @@
     }
   }
 
-  async function generarPDF(){
-
-  const r = await fetch(API + "/generar-pdf", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      id_colaborador: colaboradorData.id,
-      session_id: session_id
-    })
-  });
-
-  const res = await r.json();
-
-  if (!res.ok) {
-    alert("Error generando PDF");
-    return;
-  }
-
-  // 👉 abrir PDF guardado
-  window.open(res.url, "_blank");
-}
-
   async function iniciarSesion(){
     limpiarEstadoAcceso();
 
@@ -1391,6 +1370,7 @@
       const r = await fetch(API + "/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+          credentials: "include",
         body: JSON.stringify({ password })
       });
 
@@ -1421,7 +1401,9 @@
 
   async function cerrarSesion(){
     try{
-      await fetch(API + "/auth/logout", { method: "POST" });
+      await fetch(API + "/auth/logout", { method: "POST",
+      credentials: "include"
+       });
     }catch(error){
       console.error(error);
     }finally{
@@ -1436,7 +1418,9 @@
     limpiarEstadoAcceso();
 
     try{
-      const r = await fetch(API + "/auth/status");
+      const r = await fetch(API + "/auth/status", {
+  credentials: "include"
+});
       const res = await leerJSON(r);
 
       authEnabled = Boolean(res.authEnabled);
@@ -1460,8 +1444,8 @@
   actualizarResumen();
   inputDni.value = soloNumeros(inputDni.value, 8);
   inputDni.classList.add("dni-only");
-  //cargarEstadoAcceso();
-  autenticado = true;
+  
+  cargarEstadoAcceso();
 
   // ===============================
 // MODAL CONFIRMACION
