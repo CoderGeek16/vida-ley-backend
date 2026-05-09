@@ -11,7 +11,7 @@ const { createClient } = require('@supabase/supabase-js');
 const PDFDocument = require("pdfkit");
 
 const app = express();
-
+app.set("trust proxy", 1);
 // ===============================
 // CONFIG
 // ===============================
@@ -29,7 +29,7 @@ app.use(helmet());
 
 app.use(cors({
   origin: [
-     "https://vida-ley-frontend.onrender.com"
+     "https://registrovidaley.netlify.app"
   ],
   credentials: true
 }));
@@ -149,8 +149,10 @@ res.status(500).json({ ok:false });
 
 // ===============================
 app.post("/auth/logout", (req, res) => {
-res.clearCookie("token");
-res.json({ ok:true });
+res.clearCookie("token", {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
 });
 
 app.get("/auth/status", (req, res) => {
