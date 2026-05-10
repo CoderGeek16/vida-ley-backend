@@ -138,6 +138,7 @@ td{
 
 // 🔥 TU BACKEND EN RENDER
 function resolveApiBase(){
+
   const queryApi = new URLSearchParams(window.location.search).get("api");
   const savedApi = localStorage.getItem("vidaLeyApi");
 
@@ -151,14 +152,15 @@ function resolveApiBase(){
     return savedApi.replace(/\/+$/, "");
   }
 
-  if(["localhost", "127.0.0.1"].includes(window.location.hostname)){
+  if(["localhost","127.0.0.1"].includes(window.location.hostname)){
     return "http://localhost:3000";
   }
 
-  return "/api";
+  return "https://vida-ley-backend.onrender.com";
 }
 
-const API = "https://vida-ley-backend.onrender.com";
+const API = resolveApiBase();
+
 // =====================
 // LOGIN
 // =====================
@@ -172,7 +174,7 @@ const r = await fetch(API + "/auth/login", {
   headers: { "Content-Type": "application/json" },
   credentials: "include",
   body: JSON.stringify({
-    username: "admin",
+    dni: "admin",
     password: password
   })
 });

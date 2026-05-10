@@ -725,6 +725,65 @@
       min-height:60px;
     }
   }
+
+  .modal_privacidad{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:99999;
+}
+
+.modal_privacidad.hidden{
+  display:none;
+}
+
+.modal_privacidad_box{
+  width:90%;
+  max-width:600px;
+  background:white;
+  border-radius:20px;
+  padding:30px;
+  box-shadow:0 20px 40px rgba(0,0,0,.25);
+}
+
+.modal_privacidad_box h2{
+  margin-bottom:20px;
+  color:#0d4f4f;
+}
+
+.modal_privacidad_box p{
+  margin-bottom:15px;
+  line-height:1.6;
+  color:#444;
+}
+
+.modal_privacidad_btns{
+  display:flex;
+  justify-content:flex-end;
+  gap:15px;
+  margin-top:25px;
+}
+
+.btn_no,
+.btn_si{
+  border:none;
+  padding:12px 22px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+.btn_no{
+  background:#ddd;
+}
+
+.btn_si{
+  background:#0d6b6b;
+  color:white;
+}
 </style>
 </head>
 
@@ -921,7 +980,7 @@
               <p>Aqui puedes registrar conyuge, hijo o conviviente dentro de tu declaracion.</p>
             </div>
             <button onclick="agregar('PRIMERO')" class="btn btn-success">
-              <i class="bi bi-plus-lg"></i> Beneficiario principales
+              <i class="bi bi-plus-lg"></i> Beneficiarios principales
             </button>
           </div>
 
@@ -1017,11 +1076,37 @@ location.hostname === "127.0.0.1"
   }
 
   function alternarAcceso(permitido){
-    autenticado = permitido || !authEnabled;
-    accessGate.classList.toggle("screen-hidden", !authEnabled || permitido);
-    pantallaBusqueda.classList.toggle("screen-hidden", authEnabled && !permitido);
-    btnLogout.classList.toggle("screen-hidden", !authEnabled || !permitido);
+
+  autenticado = permitido || !authEnabled;
+
+  // 🔥 SI NO HAY LOGIN ACTIVADO
+  if(!authEnabled){
+
+    pantallaBusqueda.classList.remove("screen-hidden");
+
+    accessGate.classList.add("screen-hidden");
+
+    btnLogout.classList.add("screen-hidden");
+
+    return;
   }
+
+  // 🔥 SI HAY LOGIN
+  accessGate.classList.toggle(
+    "screen-hidden",
+    permitido
+  );
+
+  pantallaBusqueda.classList.toggle(
+    "screen-hidden",
+    !permitido
+  );
+
+  btnLogout.classList.toggle(
+    "screen-hidden",
+    !permitido
+  );
+}
 
   function setLoginLoading(loading){
     btnLogin.disabled = loading;
@@ -1171,12 +1256,35 @@ location.hostname === "127.0.0.1"
       return;
     }
 
+
     if(!d.ok){
-      alert("No encontramos tus datos con ese DNI.");
+  alert("No encontramos tus datos con ese DNI.");
+  return;
+}
+    const modal = document.getElementById("modal_privacidad");
+    const btnAcepto = document.getElementById("btn_acepto");
+    const btnNoAcepto = document.getElementById("btn_no_acepto");
+
+    modal.classList.remove("hidden");
+
+    const aceptado = await new Promise(resolve => {
+
+      btnAcepto.onclick = () => {
+        modal.classList.add("hidden");
+        resolve(true);
+      };
+
+      btnNoAcepto.onclick = () => {
+        modal.classList.add("hidden");
+        resolve(false);
+      };
+
+    });
+
+    if(!aceptado){
       return;
     }
-
-    colaboradorData = d.data;
+     colaboradorData = d.data;
 
     // 🔥 NUEVA SESIÓN AQUÍ
     session_id = crypto.randomUUID();
@@ -1185,7 +1293,7 @@ location.hostname === "127.0.0.1"
       d.data.apellido_paterno + " " + d.data.apellido_materno + ", " + d.data.nombres;
 
     document.getElementById("v_dni").innerText = d.data.dni;
-    document.getElementById("v_genero").innerText = d.data.genero?.genero || "";
+    document.getElementById("v_genero").innerText = d.data.genero_texto || "";
 
     limpiarListas();
     actualizarResumen();
@@ -1297,17 +1405,7 @@ location.hostname === "127.0.0.1"
       return;
     }
 
-    const dnisRegistrados = Array.from(document.querySelectorAll('[id^="dni_"]'))
-      .filter((input) => input.id !== "dni_" + id)
-      .map((input) => normalizarTexto(input.value))
-      .filter(Boolean);
-
-    if(dnisRegistrados.includes(data.dni)){
-      msg.className = "status-line error";
-      msg.innerText = "Ya ingresaste este DNI.";
-      return;
-    }
-
+    
     tipoGuardado = tipo;
     actualizarResumen();
     msg.className = "status-line loading";
@@ -1372,11 +1470,14 @@ location.hostname === "127.0.0.1"
 
     try{
       const r = await fetch(API + "/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        body: JSON.stringify({ password })
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    dni: "admin",
+    password: password
+  })
+});
 
       const res = await leerJSON(r);
 
@@ -1461,7 +1562,7 @@ async function mostrarConfirmacion() {
     }
 
    const r = await fetch(
-  API + "/beneficiarios?id_colaborador=" + colaboradorData.id,
+  API + "/beneficiarios?id_colaborador=" + colaboradorData.id + "&session_id=" + session_id,
   {
     method: "GET",
     credentials: "include"
@@ -1529,8 +1630,9 @@ async function generarPDF() {
       },
       credentials: "include", // 🔥 IMPORTANTE
       body: JSON.stringify({
-        id_colaborador: colaboradorData.id
-      })
+      id_colaborador: colaboradorData.id,
+      session_id: session_id
+    })
     });
 
     if (r.status === 401) {
@@ -1541,7 +1643,7 @@ async function generarPDF() {
     const res = await r.json();
 
     if (!res.ok) {
-      alert("Error al generar PDF");
+      alert(res.msg || "Error al generar PDF");
       return;
     }
 
@@ -1559,9 +1661,9 @@ async function generarPDF() {
   }
 }
 
-authEnabled = false;
-alternarAcceso(true);
-reiniciarInicio();
+  authEnabled = false;
+  alternarAcceso(true);
+  reiniciarInicio();
 
 </script>
 
@@ -1586,6 +1688,41 @@ reiniciarInicio();
   </div>
 
 </div>
+
+<div id="modal_privacidad" class="modal_privacidad hidden">
+  <div class="modal_privacidad_box">
+
+    <h2>Protección de Datos Personales</h2>
+
+    <p>
+      La información registrada en esta plataforma será utilizada
+      exclusivamente para el proceso de Registro de Beneficiarios Vida Ley,
+      conforme a la Ley N° 29733 - Ley de Protección de Datos Personales.
+    </p>
+
+    <p>
+      Tus datos serán tratados de manera confidencial y únicamente por
+      personal autorizado de la empresa.
+    </p>
+
+    <p>
+      Al continuar, declaras haber leído y aceptado el tratamiento
+      de tus datos personales para fines laborales y administrativos.
+    </p>
+
+    <div class="modal_privacidad_btns">
+      <button id="btn_no_acepto" class="btn_no">
+        No acepto
+      </button>
+
+      <button id="btn_acepto" class="btn_si">
+        Acepto
+      </button>
+    </div>
+
+  </div>
+</div>
+
 
 </body>
 </html>

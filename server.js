@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -9,6 +9,8 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { createClient } = require('@supabase/supabase-js');
 const PDFDocument = require("pdfkit");
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const app = express();
 app.set("trust proxy", 1);
@@ -56,26 +58,56 @@ process.env.JWT_SECRET,
 }
 
 function verificarToken(req, res, next){
-const token = req.cookies.token;
 
-if(!token){
-return res.status(401).json({ ok:false });
-}
+  const token = req.cookies.token;
 
-try{
-const decoded = jwt.verify(token, process.env.JWT_SECRET);
-req.user = decoded;
-next();
-}catch{
-return res.status(401).json({ ok:false });
-}
+  console.log("TOKEN:", token);
+
+  if(!token){
+    return res.status(401).json({
+      ok:false,
+      msg:"Sin token"
+    });
+  }
+
+  try{
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    console.log("DECODED:", decoded);
+
+    req.user = decoded;
+
+    next();
+
+  }catch(err){
+
+    console.log("ERROR TOKEN:", err);
+
+    return res.status(401).json({
+      ok:false,
+      msg:"Token inválido"
+    });
+
+  }
+
 }
 
 function soloAdmin(req, res, next){
-if(req.user.rol !== "admin"){
-return res.status(403).json({ ok:false });
-}
-next();
+
+  console.log("ROL:", req.user?.rol);
+
+  if(req.user?.rol !== "admin"){
+
+    return res.status(403).json({
+      ok:false,
+      msg:"No autorizado"
+    });
+
+  }
+
+  next();
+
 }
 
 // ===============================
@@ -98,58 +130,71 @@ console.error("Error log auditoria", e);
 // 🔐 LOGIN (CORREGIDO + DEBUG)
 // ===============================
 app.post("/auth/login", async (req, res) => {
+
 try{
-const { password } = req.body;
 
-console.log("LOGIN INTENTO:", "admin");
+const { dni, password } = req.body;
 
-const { data, error } = await supabase
-.from("colaboradores")
+console.log("BODY:", req.body);
+
+const { data: user, error } = await supabase
+.from("usuarios")
 .select("*")
-.eq("dni", req.params.dni)
-.maybeSingle();
+.eq("username", dni)
+.single();
 
-console.log(data);
-console.log(error);
-
-console.log("USUARIO BD:", user);
+console.log("USUARIO:", user);
+console.log("ERROR SQL:", error);
 
 if(error || !user){
-  console.log("❌ Usuario no existe");
-  return res.status(401).json({ ok:false });
+return res.status(401).json({
+ok:false,
+msg:"Usuario no encontrado"
+});
 }
-
-console.log("HASH BD:", user.password);
 
 const valido = await bcrypt.compare(password, user.password);
 
-console.log("RESULTADO BCRYPT:", valido);
 
 if(!valido){
-  console.log("❌ Password incorrecto");
-  return res.status(401).json({ ok:false });
+return res.status(401).json({
+ok:false,
+msg:"Clave incorrecta"
+});
 }
 
-const token = generarToken(user);
+const token = jwt.sign(
+{
+id: user.id,
+rol: user.rol
+},
+JWT_SECRET,
+{
+expiresIn:"2h"
+}
+);
 
 res.cookie("token", token, {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  maxAge: 1000 * 60 * 60 * 2,
+  secure: true,
+  sameSite: "none",
+  maxAge: 1000 * 60 * 60 * 2
 });
 
-await logAuditoria(user.username, "LOGIN", "Inicio sesión");
+res.json({
+ok:true
+});
 
-console.log("✅ LOGIN OK");
+}catch(err){
 
-res.json({ ok:true });
+console.log("ERROR LOGIN:", err);
 
+res.status(500).json({
+ok:false
+});
 
-}catch(e){
-console.error("ERROR LOGIN:", e);
-res.status(500).json({ ok:false });
 }
+
 });
 
 // ===============================
@@ -157,8 +202,8 @@ app.post("/auth/logout", (req, res) => {
 
 res.clearCookie("token", {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+  secure: true,
+  sameSite: "none"
 });
 res.json({ ok:true });
 
@@ -216,12 +261,25 @@ app.get("/colaborador/:dni", async (req,res)=>{
 }
     console.log("BUSCANDO DNI:", dni);
 
-    const { data, error } = await supabase
-      .from("colaboradores")
-      .select("*")
-      .eq("dni", dni)
-      .maybeSingle(); 
+const { data, error } = await supabase
+  .from("colaboradores")
+  .select("*")
+  .eq("dni", dni)
+  .maybeSingle();
 
+if(error || !data){
+  return res.status(404).json({ ok:false });
+}
+
+// BUSCAR GENERO
+const { data: generoData } = await supabase
+  .from("genero")
+  .select("genero")
+  .eq("id_genero", data.id_genero)
+  .maybeSingle();
+
+// AGREGAR TEXTO GENERO
+data.genero_texto = generoData?.genero || "";
     console.log("DATA:", data);
     console.log("ERROR:", error);
 
@@ -247,9 +305,12 @@ app.post("/guardar-beneficiario", async (req, res) => {
 
     console.log("GUARDANDO BENEFICIARIO:", data);
 
-    const { data: insertado, error } = await supabase
+
+      const { data: insertado, error } = await supabase
       .from("beneficiarios")
-      .insert([data])
+      .upsert([data], {
+        onConflict: "dni"
+      })
       .select()
       .single();
 
@@ -266,106 +327,627 @@ app.post("/guardar-beneficiario", async (req, res) => {
   }
 });
 
-// ===============================
+ // ===============================
 // GENERAR PDF
 // ===============================
-  app.post("/generar-pdf", async (req, res) => {
-    try{
+    app.post("/generar-pdf", async (req, res) => {
 
-      const { id_colaborador } = req.body;
+      try {
 
-      console.log("GENERAR PDF - ID:", id_colaborador);
+    const { id_colaborador, session_id } = req.body;
 
-      // 🔹 1. OBTENER COLABORADOR
-      const { data: col, error: errorCol } = await supabase
-        .from("colaboradores")
-        .select("*")
-        .eq("id", id_colaborador)
-        .maybeSingle();
+    console.log("ID COLABORADOR PDF:", id_colaborador);
 
-      if(errorCol || !col){
-        console.error("ERROR COLABORADOR:", errorCol);
-        return res.status(400).json({ ok:false, msg:"No colaborador" });
-      }
+        const { data: col, error: colError } = await supabase
+      .from("colaboradores")
+      .select("*")
+      .eq("id", id_colaborador)
+      .single();
 
-      // 🔹 2. OBTENER BENEFICIARIOS
-      const { data: beneficiarios, error: errorBen } = await supabase
-        .from("beneficiarios")
-        .select("*")
-        .eq("id_colaborador", id_colaborador);
+    if (colError || !col) {
+  console.log("ERROR COLABORADOR:", colError);
 
-      console.log("BENEFICIARIOS:", beneficiarios);
+  return res.status(404).json({
+    ok: false,
+    msg: "No se encontró colaborador"
+  });
+}
 
-      if(errorBen){
-        console.error("ERROR BENEFICIARIOS:", errorBen);
-        return res.status(500).json({ ok:false });
-      }
+    const { data: beneficiarios } = await supabase
+  .from("beneficiarios")
+  .select(`
+    *,
+    parentesco:parentescos(nombre)
+  `)
+  .eq("id_colaborador", id_colaborador)
+  .eq("session_id", session_id);
 
-      if(!beneficiarios || beneficiarios.length === 0){
-        return res.status(400).json({ ok:false, msg:"No beneficiarios" });
-      }
+if (!beneficiarios || beneficiarios.length === 0) {
+  return res.status(404).json({
+    ok: false,
+    msg: "No hay beneficiarios"
+  });
+}
+     
 
-      // 🔹 3. CREAR PDF
-      const doc = new PDFDocument();
-      let buffers = [];
+    // =========================
+    // SEPARAR BENEFICIARIOS
+    // =========================
 
-      doc.on("data", buffers.push.bind(buffers));
+    const primeros = beneficiarios.filter(b => {
 
-      doc.on("end", async () => {
+      const p = (b.parentesco?.nombre || "").toLowerCase();
+
+      return (
+        p.includes("conyuge") ||
+        p.includes("cónyuge") ||
+        p.includes("hijo") ||
+        p.includes("conviviente")
+      );
+
+    });
+
+    const segundos = beneficiarios.filter(b => {
+
+      const p = (b.parentesco?.nombre || "").toLowerCase();
+
+      return (
+        p.includes("padre") ||
+        p.includes("madre") ||
+        p.includes("hermano")
+      );
+
+    });
+
+    // =========================
+    // PDF
+    // =========================
+
+    const doc = new PDFDocument({
+      margin: 40,
+      size: "A4"
+    });
+
+    let buffers = [];
+
+    doc.on("data", buffers.push.bind(buffers));
+
+    doc.on("end", async () => {
+
+      try {
+
         const pdfBuffer = Buffer.concat(buffers);
-        const fileName = "vida_" + Date.now() + ".pdf";
 
-        // 🔹 SUBIR A SUPABASE STORAGE
-        const { error: uploadError } = await supabase.storage
+        const fileName = `vida_${Date.now()}.pdf`;
+
+        await supabase.storage
           .from("pdfs")
           .upload(fileName, pdfBuffer, {
             contentType: "application/pdf",
             upsert: true
           });
 
-        if(uploadError){
-          console.error("ERROR UPLOAD:", uploadError);
-          return res.status(500).json({ ok:false });
-        }
-
-        // 🔹 GENERAR URL TEMPORAL
         const { data } = await supabase.storage
           .from("pdfs")
           .createSignedUrl(fileName, 300);
-        console.log("PDF URL:", data.signedUrl);
-        res.json({ ok:true, url: data.signedUrl });
-      });
 
-      // ===============================
-      // ✍️ CONTENIDO PDF
-      // ===============================
+        res.json({
+          ok: true,
+          url: data.signedUrl
+        });
 
-      doc.fontSize(16).text("DECLARACIÓN VIDA LEY", { align: "center" });
-      doc.moveDown();
+      } catch (err) {
 
-      doc.fontSize(12).text(`Trabajador: ${col.nombres}`);
-      doc.text(`DNI: ${col.dni}`);
-      doc.text(`Apellido: ${col.apellido_paterno} ${col.apellido_materno}`);
-      doc.moveDown();
+        console.error(err);
 
-      doc.text("BENEFICIARIOS:");
-      doc.moveDown();
+        res.status(500).json({
+          ok: false
+        });
 
-      beneficiarios.forEach((b, i) => {
-        doc.text(`${i+1}. ${b.nombres}`);
-        doc.text(`   DNI: ${b.dni}`);
-        doc.text(`   Parentesco: ${b.parentesco || "-"}`);
-        doc.text(`   Dirección: ${b.direccion || "-"}`);
-        doc.moveDown();
-      });
+      }
 
-      doc.end();
+    });
 
-    }catch(e){
-      console.error("ERROR PDF:", e);
-      res.status(500).json({ ok:false });
+    // =========================
+    // VARIABLES
+    // =========================
+
+    const left = 52;
+    const usableWidth = doc.page.width - left * 2;
+
+    const tableColumns = [118, 70, 92, 92, 140];
+
+    const rowHeight = 24;
+    const tableHeaderHeight = 38;
+
+    const strokeColor = "#222222";
+    const sectionGray = "#d9d9d9";
+
+    const trabajador = `
+      ${col.apellido_paterno || ""}
+      ${col.apellido_materno || ""},
+      ${col.nombres || ""}
+    `
+    .replace(/\s+/g, " ")
+    .trim();
+
+    // =========================
+    // HELPERS
+    // =========================
+
+    function formatDate(value) {
+
+      if (!value) return "";
+
+      return new Date(value).toLocaleDateString("es-PE");
+
     }
-  });
+
+    function fitText(value, max = 90) {
+
+      const text = String(value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!text) return "";
+
+      return text.length > max
+        ? `${text.slice(0, max - 3)}...`
+        : text;
+
+    }
+
+    function drawCell(
+      x,
+      y,
+      width,
+      height,
+      text,
+      options = {}
+    ) {
+
+      const {
+        align = "left",
+        valign = "center",
+        bold = false,
+        fill = null,
+        fontSize = 9,
+        padding = 6
+      } = options;
+
+      if (fill) {
+
+        doc.save();
+
+        doc.rect(x, y, width, height)
+          .fill(fill);
+
+        doc.restore();
+
+      }
+
+      doc.rect(x, y, width, height)
+        .stroke(strokeColor);
+
+      doc.font(
+        bold
+          ? "Helvetica-Bold"
+          : "Helvetica"
+      );
+
+      doc.fontSize(fontSize)
+        .fillColor("#000");
+
+      const textHeight = doc.heightOfString(
+        text || "",
+        {
+          width: width - padding * 2,
+          align
+        }
+      );
+
+      let textY = y + padding;
+
+      if (valign === "center") {
+
+        textY = y + Math.max(
+          (height - textHeight) / 2,
+          padding / 2
+        );
+
+      }
+
+      doc.text(
+        text || "",
+        x + padding,
+        textY,
+        {
+          width: width - padding * 2,
+          align
+        }
+      );
+
+    }
+
+    function drawInfoRow(
+      y,
+      leftLabel,
+      leftValue,
+      rightLabel,
+      rightValue
+    ) {
+
+      const leftWidth = 320;
+
+      const rightWidth = usableWidth - leftWidth;
+
+      drawCell(
+        left,
+        y,
+        leftWidth,
+        32,
+        `${leftLabel}: ${leftValue || ""}`,
+        {
+          fontSize: 9.5
+        }
+      );
+
+      drawCell(
+        left + leftWidth,
+        y,
+        rightWidth,
+        32,
+        `${rightLabel}: ${rightValue || ""}`,
+        {
+          fontSize: 9.5
+        }
+      );
+
+      return y + 32;
+
+    }
+
+    function drawFullRow(y, label, value) {
+
+      drawCell(
+        left,
+        y,
+        usableWidth,
+        32,
+        `${label}: ${value || ""}`,
+        {
+          fontSize: 9.5
+        }
+      );
+
+      return y + 32;
+
+    }
+
+    function drawBeneficiariosTable(
+      y,
+      title,
+      subtitle,
+      rows,
+      notes
+    ) {
+
+      drawCell(
+        left,
+        y,
+        usableWidth,
+        28,
+        `${title}\n${subtitle}`,
+        {
+          fill: sectionGray,
+          bold: true,
+          fontSize: 9,
+          padding: 4
+        }
+      );
+
+      y += 40;
+
+      const headers = [
+        "Nombre y apellidos",
+        "DNI",
+        "Parentesco",
+        "Fecha de nacimiento",
+        "Domicilio"
+      ];
+
+      let currentX = left;
+
+      headers.forEach((header, index) => {
+
+        drawCell(
+          currentX,
+          y,
+          tableColumns[index],
+          tableHeaderHeight,
+          header,
+          {
+            bold: true,
+            align: "center",
+            fontSize: 8.5,
+            padding: 5
+          }
+        );
+
+        currentX += tableColumns[index];
+
+      });
+
+      y += tableHeaderHeight;
+
+      const printableRows = rows.length
+        ? rows
+        : [{}];
+
+      const totalRows = Math.max(
+        printableRows.length,
+        3
+      );
+
+      for (let i = 0; i < totalRows; i++) {
+
+        const row = printableRows[i] || {};
+
+        const nombreCompleto = `
+          ${row.apellido_paterno || ""}
+          ${row.apellido_materno || ""},
+          ${row.nombres || ""}
+        `
+        .replace(/^,\s*/, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+        const values = [
+
+          fitText(nombreCompleto, 46),
+
+          fitText(row.dni || "", 12),
+
+          fitText(row.parentesco?.nombre || "", 18),
+
+          fitText(
+            formatDate(row.fecha_nacimiento),
+            18
+          ),
+
+          fitText(row.domicilio || "", 34)
+
+        ];
+
+        currentX = left;
+
+        values.forEach((value, index) => {
+
+          drawCell(
+            currentX,
+            y,
+            tableColumns[index],
+            rowHeight,
+            value,
+            {
+              fontSize: 8.5,
+              padding: 4
+            }
+          );
+
+          currentX += tableColumns[index];
+
+        });
+
+        y += rowHeight;
+
+      }
+
+      doc.font("Helvetica")
+        .fontSize(8.5)
+        .fillColor("#000");
+
+      notes.forEach(note => {
+
+        doc.text(
+          note,
+          left,
+          y + 4,
+          {
+            width: usableWidth,
+            align: "left"
+          }
+        );
+
+        y = doc.y + 2;
+
+      });
+
+      return y + 10;
+
+    }
+
+    function drawFirma(y) {
+
+      const boxHeight = 110;
+
+      drawCell(
+        left,
+        y,
+        usableWidth,
+        boxHeight,
+        "",
+        {}
+      );
+
+      doc.moveTo(left + 40, y + 52)
+        .lineTo(left + 250, y + 52)
+        .stroke(strokeColor);
+
+      doc.font("Helvetica")
+        .fontSize(8.5);
+
+      doc.text(
+        "Firma del trabajador(a) asegurado(a)",
+        left + 38,
+        y + 56,
+        {
+          width: 220,
+          align: "center"
+        }
+      );
+
+      doc.fontSize(7.5);
+
+      doc.text(
+        "(Legalizada notarialmente, o por\nJuez de Paz a falta de notario)",
+        left + 46,
+        y + 70,
+        {
+          width: 200,
+          align: "center"
+        }
+      );
+
+      doc.fontSize(10);
+
+      doc.text(
+        "..........., ...... de ........................ del 20......",
+        left + 272,
+        y + 80,
+        {
+          width: 210,
+          align: "left"
+        }
+      );
+
+    }
+
+    // =========================
+    // CONTENIDO PDF
+    // =========================
+
+    let y = 46;
+
+    doc.font("Helvetica-Bold")
+      .fontSize(12)
+      .text(
+        "ANEXO",
+        left,
+        y,
+        {
+          width: usableWidth,
+          align: "center"
+        }
+      );
+
+    y = doc.y + 10;
+
+    doc.fontSize(11.5)
+      .text(
+        "FORMATO REFERENCIAL DE DECLARACION JURADA DE BENEFICIARIOS",
+        left,
+        y,
+        {
+          width: usableWidth,
+          align: "center"
+        }
+      );
+
+    y = doc.y + 1;
+
+    doc.text(
+      "DEL SEGURO DE VIDA",
+      left,
+      y,
+      {
+        width: usableWidth,
+        align: "center"
+      }
+    );
+
+    y = doc.y + 1;
+
+    doc.fontSize(8.5)
+      .text(
+        "(Decreto Legislativo N 688 y sus normas modificatorias, complementarias y reglamentarias)",
+        left,
+        y,
+        {
+          width: usableWidth,
+          align: "center"
+        }
+      );
+
+    y = doc.y + 14;
+
+    doc.font("Helvetica")
+      .fontSize(9);
+
+    doc.text(
+      "El/la suscrito(a), de acuerdo a lo dispuesto en el articulo 6 del Decreto Legislativo N 688, Ley de Consolidacion de Beneficios Sociales, formula la presente Declaracion Jurada sobre los beneficiarios del seguro de vida en caso de fallecimiento natural o en caso de fallecimiento a consecuencia de un accidente.",
+      left,
+      y,
+      {
+        width: usableWidth,
+        align: "justify"
+      }
+    );
+
+    y = doc.y + 16;
+
+    y = drawInfoRow(
+      y,
+      "Nombres y apellidos del trabajador(a) asegurado(a)",
+      trabajador,
+      "DNI",
+      col.dni
+    );
+
+    y = drawFullRow(
+      y,
+      "Nombre y apellidos o razon social del empleador",
+      "Trabajos Maritimos S.A."
+    );
+
+    y += 18;
+
+    y = drawBeneficiariosTable(
+      y,
+      "Primeros Beneficiarios:",
+      "Conyuge o conviviente y descendientes (*) (**)",
+      primeros,
+      [
+        "(*) A falta de conyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo minimo de dos (2) anos continuos, conforme al articulo 326 del Codigo Civil.",
+        "(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los articulos 816 y 817 del Codigo Civil."
+      ]
+    );
+
+    y = drawBeneficiariosTable(
+      y,
+      "Solo a falta de los Primeros Beneficiarios:",
+      "Ascendientes y hermanos menores de dieciocho (18) anos (***)",
+      segundos,
+      [
+        "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los articulos 816 y 817 del Codigo Civil."
+      ]
+    );
+
+    drawFirma(y + 8);
+
+    doc.end();
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      ok: false
+    });
+
+  }
+
+});
 
 // ===============================
 // BENEFICIARIOS
@@ -373,12 +955,13 @@ app.post("/guardar-beneficiario", async (req, res) => {
 app.get("/beneficiarios", async (req, res) => {
 
   const id_colaborador = req.query.id_colaborador;
+  const session_id = req.query.session_id;
 
   const { data } = await supabase
     .from("beneficiarios")
     .select("*")
-    .eq("id_colaborador", id_colaborador);
-
+    .eq("id_colaborador", id_colaborador)
+    .eq("session_id", session_id);
   res.json({ ok:true, data });
 });
 
@@ -391,6 +974,20 @@ app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
     .select("*");
 
   res.json({ ok:true, data });
+});
+
+app.get("/admin/historial/:id", verificarToken, soloAdmin, async (req, res) => {
+
+  const { data } = await supabase
+    .from("beneficiarios")
+    .select("*")
+    .eq("id_colaborador", req.params.id);
+
+  res.json({
+    ok:true,
+    beneficiarios:data
+  });
+
 });
 
 app.delete("/eliminar-datos/:id", verificarToken, soloAdmin, async (req, res) => {
