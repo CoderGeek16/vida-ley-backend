@@ -304,6 +304,7 @@ async function listar(){
         <tr>
           <th>DNI</th>
           <th>Nombres</th>
+          <th>Sede</th>
           <th>Acción</th>
         </tr>
     `;
@@ -313,6 +314,7 @@ async function listar(){
         <tr>
           <td>${c.dni}</td>
           <td>${c.nombres} ${c.apellido_paterno} ${c.apellido_materno}</td>
+          <td>${c.sedes?.sede || "Sin sede"}</td>
           <td>
             <button onclick="ver(${c.id})">Ver</button>
             <button onclick="eliminar(${c.id})" style="color:red">Eliminar</button>

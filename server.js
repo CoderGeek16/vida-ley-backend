@@ -263,7 +263,12 @@ app.get("/colaborador/:dni", async (req,res)=>{
 
 const { data, error } = await supabase
   .from("colaboradores")
-  .select("*")
+  .select(`
+    *,
+    sedes (
+      sede
+    )
+  `)
   .eq("dni", dni)
   .maybeSingle();
 
@@ -961,11 +966,29 @@ app.get("/beneficiarios", async (req, res) => {
 // ADMIN
 // ===============================
 app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
-  const { data } = await supabase
-    .from("colaboradores")
-    .select("*");
 
-  res.json({ ok:true, data });
+  const { data, error } = await supabase
+    .from("colaboradores")
+    .select(`
+      *,
+      sedes (
+        sede
+      )
+    `);
+
+  if(error){
+    console.log(error);
+
+    return res.status(500).json({
+      ok:false
+    });
+  }
+
+  res.json({
+    ok:true,
+    data
+  });
+
 });
 
 app.get("/admin/historial/:id", verificarToken, soloAdmin, async (req, res) => {
