@@ -911,7 +911,7 @@ const textY = y + ((height - textHeight) / 2);
       "Conyuge o conviviente y descendientes (*) (**)",
       primeros,
       [
-        "(*) A falta de conyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo minimo de dos (2) anos continuos, conforme al articulo 326 del Codigo Civil.",
+        "(*) A falta de conyuge, se puede nombrar como beneficiario a la persona con la cual conviva por un periodo minimo de dos (2) años continuos, conforme al articulo 326 del Codigo Civil.",
         "(**) En el caso de los descendientes, solo a falta de hijos puede nombrarse nietos de conformidad con lo establecido en los articulos 816 y 817 del Codigo Civil."
       ]
     );
@@ -921,7 +921,7 @@ const textY = y + ((height - textHeight) / 2);
   y = drawBeneficiariosTable(
     y,
     "Solo a falta de los Primeros Beneficiarios:",
-    "Ascendientes y hermanos menores de dieciocho (18) anos (***)",
+    "Ascendientes y hermanos menores de dieciocho (18) años (***)",
     segundos,
     [
       "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los articulos 816 y 817 del Codigo Civil."
