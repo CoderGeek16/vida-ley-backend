@@ -455,9 +455,10 @@ if (!beneficiarios || beneficiarios.length === 0) {
     const left = 52;
     const usableWidth = doc.page.width - left * 2;
 
-    const tableColumns = [118, 70, 92, 92, 140];
+    const tableColumns = [155, 60, 85, 75, 145];
 
-    const rowHeight = 24;
+    const rowHeight = 55;
+
     const tableHeaderHeight = 38;
 
     const strokeColor = "#222222";
@@ -498,76 +499,63 @@ if (!beneficiarios || beneficiarios.length === 0) {
     }
 
     function drawCell(
-      x,
-      y,
-      width,
-      height,
-      text,
-      options = {}
-    ) {
+  x,
+  y,
+  width,
+  height,
+  text,
+  options = {}
+) {
 
-      const {
-        align = "left",
-        valign = "center",
-        bold = false,
-        fill = null,
-        fontSize = 9,
-        padding = 6
-      } = options;
+  const {
+    align = "left",
+    valign = "top",
+    bold = false,
+    fill = null,
+    fontSize = 9,
+    padding = 6
+  } = options;
 
-      if (fill) {
+  if (fill) {
 
-        doc.save();
+    doc.save();
 
-        doc.rect(x, y, width, height)
-          .fill(fill);
+    doc.rect(x, y, width, height)
+      .fill(fill);
 
-        doc.restore();
+    doc.restore();
 
-      }
+  }
 
-      doc.rect(x, y, width, height)
-        .stroke(strokeColor);
+  doc.rect(x, y, width, height)
+    .stroke(strokeColor);
 
-      doc.font(
-        bold
-          ? "Helvetica-Bold"
-          : "Helvetica"
-      );
+  doc.font(
+    bold
+      ? "Helvetica-Bold"
+      : "Helvetica"
+  );
 
-      doc.fontSize(fontSize)
-        .fillColor("#000");
+  doc.fontSize(fontSize)
+    .fillColor("#000");
 
-      const textHeight = doc.heightOfString(
-        text || "",
-        {
-          width: width - padding * 2,
-          align
-        }
-      );
+  const textHeight = doc.heightOfString(text || "", {
+  width: width - padding * 2
+});
 
-      let textY = y + padding;
+const textY = y + ((height - textHeight) / 2);
 
-      if (valign === "center") {
-
-        textY = y + Math.max(
-          (height - textHeight) / 2,
-          padding / 2
-        );
-
-      }
-
-      doc.text(
-        text || "",
-        x + padding,
-        textY,
-        {
-          width: width - padding * 2,
-          align
-        }
-      );
-
+  doc.text(
+    text || "",
+    x + padding,
+    textY,
+    {
+      width: width - padding * 2,
+      align
     }
+  );
+
+}
 
     function drawInfoRow(
       y,
@@ -704,7 +692,7 @@ if (!beneficiarios || beneficiarios.length === 0) {
 
         const values = [
 
-          fitText(nombreCompleto, 46),
+          fitText(nombreCompleto, 55),
 
           fitText(row.dni || "", 12),
 
@@ -715,7 +703,7 @@ if (!beneficiarios || beneficiarios.length === 0) {
             18
           ),
 
-          fitText(row.domicilio || "", 34)
+          row.domicilio || ""
 
         ];
 
@@ -923,15 +911,19 @@ if (!beneficiarios || beneficiarios.length === 0) {
       ]
     );
 
-    y = drawBeneficiariosTable(
-      y,
-      "Solo a falta de los Primeros Beneficiarios:",
-      "Ascendientes y hermanos menores de dieciocho (18) anos (***)",
-      segundos,
-      [
-        "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los articulos 816 y 817 del Codigo Civil."
-      ]
-    );
+    if (segundos.length > 0) {
+
+  y = drawBeneficiariosTable(
+    y,
+    "Solo a falta de los Primeros Beneficiarios:",
+    "Ascendientes y hermanos menores de dieciocho (18) anos (***)",
+    segundos,
+    [
+      "(***) En el caso de los ascendientes, solo a falta de ambos padres puede nombrarse abuelos de conformidad con lo establecido en los articulos 816 y 817 del Codigo Civil."
+    ]
+  );
+
+}
 
     drawFirma(y + 8);
 
