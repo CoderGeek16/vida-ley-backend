@@ -127,6 +127,23 @@ td{
     <input placeholder="Buscar DNI..." onkeyup="buscar(event)">
 
     <div id="cards"></div>
+
+    <div style="margin:20px 0;">
+      <button 
+        onclick="eliminarTodos()"
+        style="
+          background:#c1121f;
+          color:white;
+          border:none;
+          padding:12px 20px;
+          border-radius:8px;
+          cursor:pointer;
+          font-weight:bold;
+        ">
+        🗑️ Eliminar TODOS los registros
+      </button>
+    </div>
+
     <div id="tabla"></div>
     <div id="detalle"></div>
 
@@ -376,6 +393,46 @@ document.getElementById("detalle").innerHTML = html;
   listar();
   }else{
   alert("Error al eliminar");
+  }
+}
+
+// ===============================
+// 🗑️ ELIMINAR TODOS
+// ===============================
+async function eliminarTodos(){
+
+  const confirmar = confirm(
+    "⚠️ Esto eliminará TODOS los colaboradores y beneficiarios.\n\n¿Deseas continuar?"
+  );
+
+  if(!confirmar) return;
+
+  const confirmar2 = confirm(
+    "⚠️ ÚLTIMA CONFIRMACIÓN\n\nEsta acción NO se puede deshacer."
+  );
+
+  if(!confirmar2) return;
+
+  try{
+
+    const r = await fetch(API + "/admin/eliminar-todos", {
+      method: "DELETE",
+      credentials: "include"
+    });
+
+    const res = await r.json();
+
+    if(res.ok){
+      alert("✅ Todos los registros fueron eliminados");
+      listar();
+      dashboard();
+    }else{
+      alert("❌ Error al eliminar registros");
+    }
+
+  }catch(e){
+    console.error(e);
+    alert("Error de conexión");
   }
 }
 

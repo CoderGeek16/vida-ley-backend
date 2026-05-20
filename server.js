@@ -999,6 +999,39 @@ app.delete("/eliminar-datos/:id", verificarToken, soloAdmin, async (req, res) =>
 
 });
 
+// ===================================
+// 🗑️ ELIMINAR TODO
+// ===================================
+app.delete("/admin/eliminar-todos", verificarToken, async (req, res) => {
+
+  try{
+
+    await supabase
+      .from("beneficiarios")
+      .delete()
+      .neq("id", 0);
+
+    await supabase
+      .from("colaboradores")
+      .delete()
+      .neq("id", 0);
+
+    res.json({
+      ok:true
+    });
+
+  }catch(err){
+
+    console.error(err);
+
+    res.status(500).json({
+      ok:false
+    });
+
+  }
+
+});
+
 // ===============================
 // START SERVER
 // ===============================
