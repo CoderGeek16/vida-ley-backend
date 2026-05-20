@@ -1392,6 +1392,17 @@ location.hostname === "127.0.0.1"
       fecha_nacimiento: document.getElementById("fn_" + id).value
     };
 
+    // 🚨 VALIDAR TITULAR
+    if(data.dni === colaboradorData.dni){
+
+      msg.className = "status-line error";
+
+      msg.innerText =
+        "El DNI ingresado pertenece al titular. No puedes registrarte como tu propio beneficiario.";
+
+      return;
+    }
+
     if(
       !data.dni ||
       !data.nombres ||
