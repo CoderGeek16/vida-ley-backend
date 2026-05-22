@@ -281,6 +281,8 @@ margin-bottom:20px;
 
 <input id="dniNuevo" placeholder="DNI">
 
+<input id="dvNuevo" placeholder="DV" maxlength="1" style="width:60px">
+
 <input id="apPatNuevo" placeholder="Apellido paterno">
 
 <input id="apMatNuevo" placeholder="Apellido materno">
@@ -620,6 +622,7 @@ async function listar(){
       <table>
         <tr>
           <th>DNI</th>
+          <th>DV</th>
           <th>Nombres</th>
           <th>Sede</th>
           <th>Beneficiarios</th>
@@ -637,6 +640,7 @@ async function listar(){
         <tr>
 
           <td>${c.dni}</td>
+          <td>${c.cod_verificacion || "-"}</td>
 
           <td>
             ${c.nombres}
@@ -818,6 +822,9 @@ async function guardarColaborador(){
 
     dni:
       document.getElementById("dniNuevo").value,
+    
+    cod_verificacion:
+      document.getElementById("dvNuevo").value,
 
     apellido_paterno:
       document.getElementById("apPatNuevo").value,
@@ -1003,10 +1010,11 @@ function descargarPlantilla(){
   // Hoja principal
   const plantilla = [
     {
-      DNI:"44539624",
-      AP_PATERNO:"DE LA PUENTE",
-      AP_MATERNO:"SOLORZANO",
-      NOMBRES:"HUGO MARTIN",
+      DNI:"12345678",
+      COD_VERIFICACION:"4",
+      AP_PATERNO:"PEREZ",
+      AP_MATERNO:"PEREZ",
+      NOMBRES:"JUAN",
       FECHA_NAC:"15/05/1988",
       GENERO:"1",
       SEDE:"0324"
@@ -1022,9 +1030,9 @@ function descargarPlantilla(){
     {A:"ESTRUCTURA DEL ARCHIVO"},
     {},
 
-    {A:"DNI",B:"AP_PATERNO",C:"AP_MATERNO",D:"NOMBRES",E:"FECHA_NAC",F:"GENERO",G:"SEDE"},
+    {A:"DNI",B:"COD_VERIFICACION",C:"AP_PATERNO",D:"AP_MATERNO",E:"NOMBRES",F:"FECHA_NAC",G:"GENERO",H:"SEDE"},
 
-    {A:"44539624",B:"DE LA PUENTE",C:"SOLORZANO",D:"HUGO MARTIN",E:"15/05/1988",F:"1",G:"0324"},
+    {A:"12345678",B:"4",C:"PEREZ",D:"PEREZ",E:"JUAN",F:"15/05/1988",G:"1",H:"0324"},
 
     {},
     {A:"CODIGOS DE GENERO"},

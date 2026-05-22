@@ -1161,6 +1161,7 @@ app.post("/admin/colaborador",verificarToken,soloAdmin,async (req,res)=>{
 
 const {
 dni,
+cod_verificacion,
 apellido_paterno,
 apellido_materno,
 nombres,
@@ -1197,13 +1198,13 @@ const { error } = await supabase
 .from("colaboradores")
 .insert([{
 dni,
+cod_verificacion,
 apellido_paterno,
 apellido_materno,
 nombres,
 fecha_nacimiento,
 id_genero,
-idsede,
-cod_verificacion:"0"
+idsede
 }]);
 
 if(error){
@@ -1285,27 +1286,30 @@ for(const x of filas){
 
       registros.push({
 
-         dni,
+        dni,
 
-         apellido_paterno:
+        apellido_paterno:
             String(x.AP_PATERNO || "").trim(),
 
-         apellido_materno:
+        apellido_materno:
             String(x.AP_MATERNO || "").trim(),
 
-         nombres:
+        nombres:
             String(x.NOMBRES || "").trim(),
 
-         fecha_nacimiento:
+        fecha_nacimiento:
             fechaNac,
 
-         id_genero:
+        id_genero:
             parseInt(x.GENERO),
 
-         idsede:
+        idsede:
             String(x.SEDE || "").padStart(4,"0"),
 
-         cod_verificacion:"0"
+        cod_verificacion:
+            String(
+              x.COD_VERIFICACION || "0"
+            ).trim()
 
       });
 
