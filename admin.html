@@ -77,11 +77,16 @@ body{
 
 .card{
   background:white;
-  padding:20px;
-  border-radius:10px;
-  margin:10px;
-  display:inline-block;
-  min-width:200px;
+  border-left:6px solid #0d6efd;
+  border-radius:14px;
+  padding:25px;
+  min-width:260px;
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
+  transition:.3s;
+}
+
+.card:hover{
+  transform:translateY(-2px);
 }
 
 table{
@@ -95,6 +100,49 @@ td{
   padding:10px;
   border-bottom:1px solid #eee;
 }
+
+.dashboard-table{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+}
+
+.dashboard-table thead{
+  background:#f4f6f8;
+}
+
+.dashboard-table th{
+  padding:18px;
+  text-align:center;
+  font-size:15px;
+  font-weight:600;
+  color:#2d3748;
+  border-right:1px solid #e2e8f0;
+}
+
+.dashboard-table td{
+  padding:18px;
+  text-align:center;
+  border-top:1px solid #edf2f7;
+  border-right:1px solid #edf2f7;
+}
+
+.dashboard-table th:last-child,
+.dashboard-table td:last-child{
+  border-right:none;
+}
+
+.dashboard-table tbody tr:nth-child(even){
+  background:#fafafa;
+}
+
+.dashboard-table tbody tr:hover{
+  background:#f7fbff;
+}
+
 </style>
 </head>
 
@@ -126,26 +174,162 @@ td{
 
     <input placeholder="Buscar DNI..." onkeyup="buscar(event)">
 
-    <div id="cards"></div>
+<!-- DASHBOARD -->
+<div id="dashboardSection">
 
-    <div style="margin:20px 0;">
-      <button 
-        onclick="eliminarTodos()"
+  <div id="cards"
+style="
+display:flex;
+gap:20px;
+flex-wrap:wrap;
+margin-bottom:25px;
+"></div>
+
+</div>
+
+<!-- COLABORADORES -->
+<div id="colaboradoresSection" style="display:none;">
+
+  <div style="margin:20px 0; display:flex; gap:15px;">
+
+    <button
+      onclick="eliminarTodos()"
+      style="
+        background:#c1121f;
+        color:white;
+        border:none;
+        padding:12px 20px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:bold;
+      ">
+      🗑️ Eliminar TODOS los registros
+    </button>
+
+    <button
+      onclick="descargarExcel()"
+      style="
+        background:#198754;
+        color:white;
+        border:none;
+        padding:12px 20px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:bold;
+      ">
+      📊 Descargar Excel
+    </button>
+
+      <button onclick="mostrarFormulario()"
         style="
-          background:#c1121f;
-          color:white;
-          border:none;
-          padding:12px 20px;
-          border-radius:8px;
-          cursor:pointer;
-          font-weight:bold;
+        background:#0d6efd;
+        color:white;
+        border:none;
+        padding:12px 20px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:bold;
         ">
-        🗑️ Eliminar TODOS los registros
-      </button>
-    </div>
+        ➕ Nuevo colaborador
+        </button>
 
-    <div id="tabla"></div>
-    <div id="detalle"></div>
+        <button
+onclick="document.getElementById('excelFile').click()"
+style="
+background:#6f42c1;
+color:white;
+border:none;
+padding:12px 20px;
+border-radius:8px;
+cursor:pointer;
+font-weight:bold;
+">
+📤 Carga Masiva Excel
+</button>
+
+<button
+  onclick="descargarPlantilla()"
+  style="
+    background:#0d6efd;
+    color:white;
+    border:none;
+    padding:12px 20px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+  ">
+  📥 Descargar Plantilla
+</button>
+
+<input
+type="file"
+id="excelFile"
+accept=".xlsx,.xls"
+style="display:none"
+onchange="cargarExcel(event)">
+
+        <div id="formColaborador"
+style="
+display:none;
+background:white;
+padding:20px;
+border-radius:10px;
+margin-bottom:20px;
+">
+
+<h3>Nuevo colaborador</h3>
+
+<input id="dniNuevo" placeholder="DNI">
+
+<input id="apPatNuevo" placeholder="Apellido paterno">
+
+<input id="apMatNuevo" placeholder="Apellido materno">
+
+<input id="nomNuevo" placeholder="Nombres">
+
+<input id="fecNacNuevo" type="date">
+
+<select id="sexoNuevo">
+  <option value="1">Masculino</option>
+  <option value="2">Femenino</option>
+</select>
+
+<select id="sedeNuevo">
+
+<option value="0301">CALLAO</option>
+<option value="0302">CHIMBOTE</option>
+<option value="0303">ILO</option>
+<option value="0304">MATARANI</option>
+<option value="0305">SALAVERRY</option>
+<option value="0306">PAITA</option>
+<option value="0307">PISCO</option>
+<option value="0309">HUARMEY</option>
+<option value="0324">MIRAFLORES</option>
+<option value="0326">QUELLAVECO</option>
+<option value="0327">CALLAO COLON</option>
+<option value="0328">CALLAO PAÑOL</option>
+<option value="0329">CALLAO TCSA</option>
+<option value="0330">SUPE</option>
+<option value="0311">PTO. CALLAO</option>
+<option value="0313">PTO. ILO</option>
+<option value="0314">PTO. MATARANI</option>
+<option value="0315">PTO. SALAVERRY</option>
+
+</select>
+
+<button onclick="guardarColaborador()">
+Guardar
+</button>
+
+</div>
+
+  </div>
+
+  <div id="tabla"></div>
+
+  <div id="detalle"></div>
+
+</div>
 
   </div>
 
@@ -245,27 +429,156 @@ async function logout(){
 // DASHBOARD
 // =====================
 async function dashboard(){
-  try{
 
-    const r = await fetch(API + "/admin/colaboradores", {
-      credentials: "include"
-    });
+  document.getElementById("dashboardSection").style.display = "block";
+  document.getElementById("colaboradoresSection").style.display = "none";
 
-    const col = await r.json();
-
-    if(!r.ok || !col.ok){
-      document.getElementById("cards").innerHTML = `<div class="card">⚠️ No autorizado</div>`;
-      return;
+  const r = await fetch(
+    API + "/admin/dashboard",
+    {
+      credentials:"include"
     }
+  );
 
-    document.getElementById("cards").innerHTML = `
-      <div class="card">👨‍💼 Colaboradores: ${col.data?.length || 0}</div>
-    `;
+  const res = await r.json();
 
-  }catch(e){
-    console.error(e);
-    document.getElementById("cards").innerHTML = `<div class="card">Error conexión</div>`;
+  if(!res.ok){
+    return;
   }
+
+  let total = 0;
+  let registrados = 0;
+
+  res.data.forEach(x => {
+    total += x.total;
+    registrados += x.registrados;
+  });
+
+  const faltan =
+    total - registrados;
+
+  const avance =
+    total > 0
+      ? Math.round(
+          registrados * 100 / total
+        )
+      : 0;
+
+  document.getElementById("cards").innerHTML = `
+
+<div class="card">
+  <div>👨‍💼 Total colaboradores</div>
+
+  <div style="
+    font-size:40px;
+    font-weight:700;
+    margin-top:10px;
+    color:#0d4f5a;
+  ">
+    ${total}
+  </div>
+</div>
+
+<div class="card">
+  <div>✅ Registrados</div>
+
+  <div style="
+    font-size:40px;
+    font-weight:700;
+    margin-top:10px;
+    color:#198754;
+  ">
+    ${registrados}
+  </div>
+</div>
+
+<div class="card">
+  <div>⏳ Pendientes</div>
+
+  <div style="
+    font-size:40px;
+    font-weight:700;
+    margin-top:10px;
+    color:#dc3545;
+  ">
+    ${faltan}
+  </div>
+</div>
+
+<div class="card">
+  <div>📈 Avance General</div>
+
+  <div style="
+    font-size:40px;
+    font-weight:700;
+    margin-top:10px;
+    color:#0d6efd;
+  ">
+    ${avance}%
+  </div>
+</div>
+
+  <table class="dashboard-table" style="margin-top:20px">
+
+    <tr>
+      <th>Sede</th>
+      <th>Total</th>
+      <th>Registrados</th>
+      <th>Falta</th>
+      <th>%</th>
+    </tr>
+
+${res.data.map(x => {
+
+const color =
+  x.avance >= 80
+    ? "#198754"
+    : x.avance >= 50
+      ? "#ffc107"
+      : "#dc3545";
+
+return `
+<tr>
+
+<td>${x.sede}</td>
+
+<td>${x.total}</td>
+
+<td>${x.registrados}</td>
+
+<td>${x.falta}</td>
+
+        <td>
+
+          <div style="
+            background:#eee;
+            border-radius:20px;
+            overflow:hidden;
+          ">
+
+      <div style="
+        width:${x.avance}%;
+        background:${color};
+        color:white;
+        text-align:center;
+        padding:6px;
+        border-radius:20px;
+        font-weight:600;
+      ">
+              ${x.avance}%
+            </div>
+
+          </div>
+
+        </td>
+
+      </tr>
+
+`;
+}).join("")}
+
+  </table>
+  `;
 }
 
 
@@ -273,6 +586,10 @@ async function dashboard(){
 // LISTAR
 // =====================
 async function listar(){
+
+  document.getElementById("dashboardSection").style.display = "none";
+  document.getElementById("colaboradoresSection").style.display = "block";
+
   console.log("LISTAR EJECUTADO");
 
   try{
@@ -299,26 +616,55 @@ async function listar(){
       return;
     }
 
-    let html = `
+        let html = `
       <table>
         <tr>
           <th>DNI</th>
           <th>Nombres</th>
           <th>Sede</th>
+          <th>Beneficiarios</th>
           <th>Acción</th>
         </tr>
     `;
 
     res.data.forEach(c => {
+
+      const tieneBeneficiarios =
+        c.beneficiarios &&
+        c.beneficiarios.length > 0;
+
       html += `
         <tr>
+
           <td>${c.dni}</td>
-          <td>${c.nombres} ${c.apellido_paterno} ${c.apellido_materno}</td>
-          <td>${c.sedes?.sede || "Sin sede"}</td>
+
           <td>
-            <button onclick="ver(${c.id})">Ver</button>
-            <button onclick="eliminar(${c.id})" style="color:red">Eliminar</button>
+            ${c.nombres}
+            ${c.apellido_paterno}
+            ${c.apellido_materno}
           </td>
+
+          <td>
+            ${c.sedes?.sede || "Sin sede"}
+          </td>
+
+    <td>
+      ${tieneBeneficiarios ? "✅ Sí" : "-"}
+    </td>
+
+          <td>
+            <button onclick="ver(${c.id})">
+              Ver
+            </button>
+
+            <button
+              onclick="eliminar(${c.id})"
+              style="color:red"
+            >
+              Eliminar
+            </button>
+          </td>
+
         </tr>
       `;
     });
@@ -347,7 +693,23 @@ if(!res.beneficiarios || res.beneficiarios.length === 0){
 html += "<div>No tiene beneficiarios registrados</div>";
 }else{
 res.beneficiarios.forEach(b => {
-html += `<div>• ${b.nombres}</div>`;
+
+  const primerNombre =
+    (b.nombres || "").trim().split(" ")[0];
+
+html += `
+<div style="
+padding:8px;
+margin:5px 0;
+background:#fff;
+border-left:4px solid #198754;
+border-radius:6px;
+box-shadow:0 1px 4px rgba(0,0,0,.05);
+">
+👤 ${primerNombre} ${b.apellido_paterno}
+</div>
+`;
+
 });
 }
 
@@ -438,7 +800,295 @@ async function eliminarTodos(){
   }
 }
 
+function mostrarFormulario(){
+
+  const form =
+    document.getElementById("formColaborador");
+
+  form.style.display =
+    form.style.display === "none"
+      ? "block"
+      : "none";
+
+}
+
+async function guardarColaborador(){
+
+  const data = {
+
+    dni:
+      document.getElementById("dniNuevo").value,
+
+    apellido_paterno:
+      document.getElementById("apPatNuevo").value,
+
+    apellido_materno:
+      document.getElementById("apMatNuevo").value,
+
+    nombres:
+      document.getElementById("nomNuevo").value,
+
+    fecha_nacimiento:
+      document.getElementById("fecNacNuevo").value,
+
+    id_genero:
+      document.getElementById("sexoNuevo").value,
+
+    idsede:
+      document.getElementById("sedeNuevo").value
+
+  };
+
+  const r = await fetch(
+    API + "/admin/colaborador",
+    {
+      method:"POST",
+      credentials:"include",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify(data)
+    }
+  );
+
+  const res = await r.json();
+
+  if(res.ok){
+
+    alert("Colaborador registrado");
+
+    listar();
+
+    document.getElementById(
+      "formColaborador"
+    ).style.display = "none";
+
+  }else{
+
+    alert(res.msg || "Error al guardar");
+
+  }
+
+}
+async function cargarExcel(event){
+
+try{
+
+const archivo =
+event.target.files[0];
+
+if(!archivo){
+return;
+}
+
+const data =
+await archivo.arrayBuffer();
+
+const workbook =
+XLSX.read(data);
+
+const hoja =
+workbook.Sheets[
+workbook.SheetNames[0]
+];
+
+const filas =
+XLSX.utils.sheet_to_json(hoja);
+
+if(filas.length === 0){
+alert("El archivo está vacío");
+return;
+}
+
+const r = await fetch(
+API + "/admin/carga-masiva",
+{
+method:"POST",
+credentials:"include",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify(filas)
+});
+
+const res = await r.json();
+
+if(res.ok){
+
+if(res.cantidad === 0){
+
+  alert(
+    "Todos los DNI del archivo ya existen"
+  );
+
+}else{
+
+  alert(
+    `✅ Se registraron ${res.cantidad} colaboradores`
+  );
+
+}
+
+listar();
+
+}else{
+
+alert(
+res.error || "Error en carga masiva"
+);
+
+}
+
+}catch(e){
+
+console.error(e);
+
+alert("Error procesando Excel");
+
+}
+
+}
+
+// ===============================
+// 📊 DESCARGAR EXCEL
+// ===============================
+async function descargarExcel(){
+
+  try{
+
+    const r = await fetch(API + "/admin/colaboradores", {
+      credentials: "include"
+    });
+
+    const res = await r.json();
+
+    if(!res.ok){
+      alert("No se pudieron obtener los datos");
+      return;
+    }
+
+    const datos = res.data.map(c => ({
+      DNI: c.dni,
+      Nombres: `${c.nombres} ${c.apellido_paterno} ${c.apellido_materno}`,
+      Sede: c.sedes?.sede || "Sin sede",
+      Beneficiarios:
+        (c.beneficiarios && c.beneficiarios.length > 0)
+          ? "Sí"
+          : "No"
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(datos);
+
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      wb,
+      ws,
+      "Colaboradores"
+    );
+
+    XLSX.writeFile(
+      wb,
+      "Colaboradores_Vida_Ley.xlsx"
+    );
+
+  }catch(e){
+    console.error(e);
+    alert("Error al generar Excel");
+  }
+}
+
+function descargarPlantilla(){
+
+  // Hoja principal
+  const plantilla = [
+    {
+      DNI:"44539624",
+      AP_PATERNO:"DE LA PUENTE",
+      AP_MATERNO:"SOLORZANO",
+      NOMBRES:"HUGO MARTIN",
+      FECHA_NAC:"15/05/1988",
+      GENERO:"1",
+      SEDE:"0324"
+    }
+  ];
+
+  const wsPlantilla =
+    XLSX.utils.json_to_sheet(plantilla);
+
+  // Hoja guías
+  const guias = [
+
+    {A:"ESTRUCTURA DEL ARCHIVO"},
+    {},
+
+    {A:"DNI",B:"AP_PATERNO",C:"AP_MATERNO",D:"NOMBRES",E:"FECHA_NAC",F:"GENERO",G:"SEDE"},
+
+    {A:"44539624",B:"DE LA PUENTE",C:"SOLORZANO",D:"HUGO MARTIN",E:"15/05/1988",F:"1",G:"0324"},
+
+    {},
+    {A:"CODIGOS DE GENERO"},
+    {A:"MASCULINO",B:"1"},
+    {A:"FEMENINO",B:"2"},
+
+    {},
+    {A:"SEDES",B:"CODIGO"},
+    {A:"CALLAO",B:"0301"},
+    {A:"CHIMBOTE",B:"0302"},
+    {A:"ILO",B:"0303"},
+    {A:"MATARANI",B:"0304"},
+    {A:"SALAVERRY",B:"0305"},
+    {A:"PAITA",B:"0306"},
+    {A:"PISCO",B:"0307"},
+    {A:"HUARMEY",B:"0309"},
+    {A:"MIRAFLORES",B:"0324"},
+    {A:"QUELLAVECO",B:"0326"},
+    {A:"CALLAO COL",B:"0327"},
+    {A:"CALLAO PAÑOL",B:"0328"},
+    {A:"CALLAO TCSA",B:"0329"},
+    {A:"SUPE",B:"0330"},
+    {A:"PTO. CALLAO",B:"0311"},
+    {A:"PTO. ILO",B:"0313"},
+    {A:"PTO. MATARANI",B:"0314"},
+    {A:"PTO. SALAVERRY",B:"0315"},
+
+    {},
+    {A:"REGLAS IMPORTANTES"},
+    {A:"DNI de 8 dígitos"},
+    {A:"Fecha formato dd/mm/yyyy"},
+    {A:"1 = Masculino"},
+    {A:"2 = Femenino"},
+    {A:"Usar código de sede"},
+    {A:"No dejar campos vacíos"},
+    {A:"La primera fila debe contener encabezados"}
+  ];
+
+  const wsGuias =
+    XLSX.utils.json_to_sheet(guias);
+
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    wsPlantilla,
+    "CargaMasiva"
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    wsGuias,
+    "GUIAS"
+  );
+
+  XLSX.writeFile(
+    wb,
+    "Plantilla_Carga_Masiva_Vida_Ley.xlsx"
+  );
+}
+
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 </body>
 </html>

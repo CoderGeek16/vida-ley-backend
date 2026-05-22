@@ -308,6 +308,21 @@ app.post("/guardar-beneficiario", async (req, res) => {
 
     const data = req.body;
 
+    const { data: colaborador } = await supabase
+.from("colaboradores")
+.select("dni")
+.eq("id", data.id_colaborador)
+.single();
+
+if(colaborador?.dni === data.dni){
+
+  return res.status(400).json({
+    ok:false,
+    msg:"El DNI pertenece al titular"
+  });
+
+}
+
     console.log("GUARDANDO BENEFICIARIO:", data);
 
 
@@ -965,31 +980,48 @@ app.get("/beneficiarios", async (req, res) => {
 // ===============================
 // ADMIN
 // ===============================
-app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
+    app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
 
-  const { data, error } = await supabase
-    .from("colaboradores")
+      const { data, error } = await supabase
+        .from("colaboradores")
     .select(`
       *,
       sedes (
         sede
+      ),
+      beneficiarios (
+        nombres,
+        apellido_paterno
       )
     `);
 
-  if(error){
-    console.log(error);
+      if(error){
+        console.log(error);
 
-    return res.status(500).json({
-      ok:false
+        return res.status(500).json({
+          ok:false
+        });
+      }
+
+      const colaboradores = data.map(c => ({
+
+        ...c,
+
+        sede_nombre:
+          c.sedes?.sede || "Sin sede",
+
+        tiene_beneficiarios:
+          c.beneficiarios &&
+          c.beneficiarios.length > 0
+
+      }));
+
+      res.json({
+        ok:true,
+        data: colaboradores
+      });
+
     });
-  }
-
-  res.json({
-    ok:true,
-    data
-  });
-
-});
 
 app.get("/admin/historial/:id", verificarToken, soloAdmin, async (req, res) => {
 
@@ -1022,10 +1054,79 @@ app.delete("/eliminar-datos/:id", verificarToken, soloAdmin, async (req, res) =>
 
 });
 
+app.get(
+  "/admin/dashboard",
+  verificarToken,
+  soloAdmin,
+  async (req, res) => {
+
+    const { data: colaboradores } = await supabase
+      .from("colaboradores")
+      .select(`
+        id,
+        idsede,
+        sedes (
+          sede
+        ),
+        beneficiarios (
+          id
+        )
+      `);
+
+    const resumen = {};
+
+    colaboradores.forEach(c => {
+
+      const sede =
+        c.sedes?.sede || "SIN SEDE";
+
+      if(!resumen[sede]){
+        resumen[sede] = {
+          sede,
+          total:0,
+          registrados:0
+        };
+      }
+
+      resumen[sede].total++;
+
+      if(
+        c.beneficiarios &&
+        c.beneficiarios.length > 0
+      ){
+        resumen[sede].registrados++;
+      }
+
+    });
+
+    const resultado = Object.values(resumen)
+      .map(x => ({
+        ...x,
+        falta:
+          x.total - x.registrados,
+        avance:
+          Math.round(
+            (x.registrados * 100) /
+            x.total
+          )
+      }));
+
+    res.json({
+      ok:true,
+      data: resultado
+    });
+
+});
+
+
 // ===================================
 // 🗑️ ELIMINAR TODO
 // ===================================
-app.delete("/admin/eliminar-todos", verificarToken, async (req, res) => {
+app.delete(
+"/admin/eliminar-todos",
+verificarToken,
+soloAdmin,
+async (req,res)=>{
 
   try{
 
@@ -1052,6 +1153,207 @@ app.delete("/admin/eliminar-todos", verificarToken, async (req, res) => {
     });
 
   }
+
+});
+
+
+app.post("/admin/colaborador",verificarToken,soloAdmin,async (req,res)=>{
+
+const {
+dni,
+apellido_paterno,
+apellido_materno,
+nombres,
+fecha_nacimiento,
+id_genero,
+idsede
+} = req.body;
+
+if(!/^\d{8}$/.test(dni)){
+
+  return res.status(400).json({
+    ok:false,
+    msg:"DNI inválido"
+  });
+
+}
+
+const { data: existe } = await supabase
+.from("colaboradores")
+.select("id")
+.eq("dni", dni)
+.maybeSingle();
+
+if(existe){
+
+  return res.status(400).json({
+    ok:false,
+    msg:"El DNI ya existe"
+  });
+
+}
+
+const { error } = await supabase
+.from("colaboradores")
+.insert([{
+dni,
+apellido_paterno,
+apellido_materno,
+nombres,
+fecha_nacimiento,
+id_genero,
+idsede,
+cod_verificacion:"0"
+}]);
+
+if(error){
+
+console.log(error);
+
+return res.status(500).json({
+ok:false
+});
+
+}
+
+res.json({
+ok:true
+});
+
+});
+
+app.post("/admin/carga-masiva",verificarToken,soloAdmin,async (req,res)=>{
+
+try{
+
+const filas = req.body;
+console.log("FILAS RECIBIDAS:", filas.length);
+
+const registros = [];
+
+for(const x of filas){
+
+   const dni = String(x.DNI || "").trim();
+
+   if(!/^\d{8}$/.test(dni)){
+      continue;
+   }
+
+   const { data: existe } = await supabase
+      .from("colaboradores")
+      .select("id")
+      .eq("dni", dni)
+      .maybeSingle();
+
+   if(!existe){
+
+      let fechaNac = x.FECHA_NAC;
+
+      console.log("FECHA ORIGINAL:", fechaNac);
+
+      if(typeof fechaNac === "number"){
+
+         const fechaExcel = new Date(
+            (fechaNac - 25569) * 86400 * 1000
+         );
+
+         fechaNac =
+            fechaExcel.getFullYear() + "-" +
+            String(fechaExcel.getMonth()+1).padStart(2,"0") + "-" +
+            String(fechaExcel.getDate()).padStart(2,"0");
+      }
+
+      else if(typeof fechaNac === "string"){
+
+         const partes = String(fechaNac).trim().split("/");
+
+         if(partes.length === 3){
+
+            fechaNac =
+               partes[2] + "-" +
+               partes[1].padStart(2,"0") + "-" +
+               partes[0].padStart(2,"0");
+         }
+      }
+
+      if(!fechaNac){
+        console.log("Fecha inválida:", x);
+        continue;
+      }
+
+      console.log("FECHA CONVERTIDA:", fechaNac);
+
+      registros.push({
+
+         dni,
+
+         apellido_paterno:
+            String(x.AP_PATERNO || "").trim(),
+
+         apellido_materno:
+            String(x.AP_MATERNO || "").trim(),
+
+         nombres:
+            String(x.NOMBRES || "").trim(),
+
+         fecha_nacimiento:
+            fechaNac,
+
+         id_genero:
+            parseInt(x.GENERO),
+
+         idsede:
+            String(x.SEDE || "").padStart(4,"0"),
+
+         cod_verificacion:"0"
+
+      });
+
+   }
+
+}
+
+if(registros.length === 0){
+
+  return res.json({
+    ok:true,
+    cantidad:0,
+    mensaje:"Todos los DNI ya existen"
+  });
+
+}
+
+console.log("REGISTROS A INSERTAR:", registros.length);
+
+const { error } = await supabase
+  .from("colaboradores")
+  .insert(registros);
+
+if(error){
+
+  console.log(error);
+
+  return res.status(500).json({
+    ok:false,
+    error:error.message
+  });
+
+}
+
+res.json({
+  ok:true,
+  cantidad:registros.length
+});
+
+}catch(error){
+
+  console.log(error);
+
+  res.status(500).json({
+    ok:false
+  });
+
+}
 
 });
 
