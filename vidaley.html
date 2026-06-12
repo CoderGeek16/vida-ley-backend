@@ -1321,6 +1321,15 @@ location.hostname === "127.0.0.1"
 
     contador++;
 
+    // Copiar el domicilio del primer beneficiario si ya fue ingresado
+    let domicilioPredeterminado = "";
+
+    const primerDomicilio = document.getElementById("dom_1");
+
+    if (primerDomicilio && primerDomicilio.value.trim() !== "") {
+        domicilioPredeterminado = primerDomicilio.value;
+    }
+
     const html = `
       <article class="benef-card ${tipo === "PRIMERO" ? "primary" : "secondary"}" id="card_${contador}">
         <div class="benef-grid">
@@ -1328,8 +1337,10 @@ location.hostname === "127.0.0.1"
           <input id="nom_${contador}" class="form-control" maxlength="100" placeholder="Nombres" autocomplete="off">
           <input id="ap_${contador}" class="form-control" maxlength="50" placeholder="Apellido paterno" autocomplete="off">
           <input id="am_${contador}" class="form-control" maxlength="50" placeholder="Apellido materno" autocomplete="off">
-          <input id="dom_${contador}" class="form-control full" maxlength="250" placeholder="Domicilio" autocomplete="off">
-
+          
+          <input id="dom_${contador}" class="form-control full" maxlength="250" placeholder="Domicilio" autocomplete="off"
+          value="${domicilioPredeterminado}">
+          
           <select id="par_${contador}" class="form-select">
             ${tipo === "PRIMERO"
               ? '<option value="1">Conyuge</option><option value="2">Hijo</option><option value="4">Conviviente</option>'
@@ -1341,8 +1352,22 @@ location.hostname === "127.0.0.1"
             <option value="2">Femenino</option>
           </select>
 
-          <input id="fn_${contador}" type="date" class="form-control full">
-        </div>
+          <div class="full">
+    <label for="fn_${contador}" class="form-label">
+        Fecha de Nacimiento
+    </label>
+
+    <input
+        id="fn_${contador}"
+        type="date"
+        class="form-control"
+    >
+</div>
+        
+        
+        
+        
+          </div>
 
         <div class="mini-note">Completa los datos y guarda el registro para que aparezca en el PDF.</div>
 
