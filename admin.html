@@ -448,13 +448,13 @@ async function dashboard(){
     return;
   }
 
-  let total = 0;
-  let registrados = 0;
+const total = res.totalColaboradores;
 
-  res.data.forEach(x => {
-    total += x.total;
+let registrados = 0;
+
+res.data.forEach(x => {
     registrados += x.registrados;
-  });
+});
 
   const faltan =
     total - registrados;

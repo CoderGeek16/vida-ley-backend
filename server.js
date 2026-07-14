@@ -24,6 +24,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+console.log("SUPABASE URL:", process.env.SUPABASE_URL);
+
 // ===============================
 // MIDDLEWARE
 // ===============================
@@ -982,28 +984,39 @@ app.get("/beneficiarios", async (req, res) => {
 // ===============================
     app.get("/admin/colaboradores", verificarToken, soloAdmin, async (req, res) => {
 
-      const { data, error } = await supabase
+let colaboradores = [];
+let desde = 0;
+const limite = 1000;
+
+while (true) {
+
+    const { data, error } = await supabase
         .from("colaboradores")
-    .select(`
-      *,
-      sedes (
-        sede
-      ),
-      beneficiarios (
-        nombres,
-        apellido_paterno
-      )
-    `);
+        .select(`
+            *,
+            sedes (
+                sede
+            ),
+            beneficiarios (
+                nombres,
+                apellido_paterno
+            )
+        `)
+        .range(desde, desde + limite - 1);
 
-      if(error){
+    if (error) {
         console.log(error);
+        return res.status(500).json({ ok:false });
+    }
 
-        return res.status(500).json({
-          ok:false
-        });
-      }
+    colaboradores.push(...data);
 
-      const colaboradores = data.map(c => ({
+    if (data.length < limite) break;
+
+    desde += limite;
+}
+
+      const resultado = colaboradores.map(c => ({
 
         ...c,
 
@@ -1016,10 +1029,10 @@ app.get("/beneficiarios", async (req, res) => {
 
       }));
 
-      res.json({
+    res.json({
         ok:true,
-        data: colaboradores
-      });
+        data: resultado
+    });
 
     });
 
@@ -1060,20 +1073,29 @@ app.get(
   soloAdmin,
   async (req, res) => {
 
-    const { data: colaboradores } = await supabase
-      .from("colaboradores")
-      .select(`
-        id,
-        idsede,
-        sedes (
-          sede
-        ),
-        beneficiarios (
-          id
-        )
-      `);
+const { data: colaboradores, count, error } = await supabase
+.from("colaboradores")
+.select(`
+    id,
+    idsede,
+    sedes (
+        sede
+    )
+`, {
+    count: "exact"
+})
+.range(0, 20000);
 
-    const resumen = {};
+console.log("COUNT:", count);
+console.log("REGISTROS:", colaboradores.length);
+console.log("ERROR:", error);
+const totalColaboradores = count;
+
+const { data: beneficiarios } = await supabase
+.from("beneficiarios")
+.select("id,id_colaborador");
+
+const resumen = {};
 
     colaboradores.forEach(c => {
 
@@ -1090,12 +1112,14 @@ app.get(
 
       resumen[sede].total++;
 
-      if(
-        c.beneficiarios &&
-        c.beneficiarios.length > 0
-      ){
-        resumen[sede].registrados++;
-      }
+const tieneBeneficiario =
+    beneficiarios.some(
+        b => b.id_colaborador === c.id
+    );
+
+if(tieneBeneficiario){
+    resumen[sede].registrados++;
+}
 
     });
 
@@ -1112,8 +1136,9 @@ app.get(
       }));
 
     res.json({
-      ok:true,
-      data: resultado
+      ok: true,
+      data: resultado,
+      totalColaboradores: totalColaboradores
     });
 
 });
@@ -1206,16 +1231,6 @@ fecha_nacimiento,
 id_genero,
 idsede
 }]);
-
-if(error){
-
-console.log(error);
-
-return res.status(500).json({
-ok:false
-});
-
-}
 
 res.json({
 ok:true
