@@ -1079,113 +1079,183 @@ app.get(
   soloAdmin,
   async (req, res) => {
 
-const { data: colaboradores, count, error } = await supabase
-.from("colaboradores")
-.select(`
-    id,
-    idsede,
-    sedes (
-        sede
-    )
-`, {
-    count: "exact"
-})
-.range(0, 20000);
+    try {
 
-console.log("COUNT:", count);
-console.log("REGISTROS:", colaboradores.length);
-console.log("ERROR:", error);
-const totalColaboradores = count;
+      // 1. TRAER TODOS LOS COLABORADORES
+      let colaboradores = [];
+      let desde = 0;
+      const limite = 1000;
 
-const { data: beneficiarios } = await supabase
-.from("beneficiarios")
-.select("id,id_colaborador");
+      while (true) {
 
-const resumen = {};
+        const { data, error } = await supabase
+          .from("colaboradores")
+          .select("id, idsede")
+          .range(desde, desde + limite - 1);
 
-    colaboradores.forEach(c => {
+        if (error) {
+          console.error("ERROR COLABORADORES:", error);
+          return res.status(500).json({
+            ok: false,
+            error: error.message
+          });
+        }
 
-      const sede =
-        c.sedes?.sede || "SIN SEDE";
+        colaboradores.push(...data);
 
-      if(!resumen[sede]){
-        resumen[sede] = {
-          sede,
-          total:0,
-          registrados:0
-        };
+        if (data.length < limite) break;
+
+        desde += limite;
       }
 
-      resumen[sede].total++;
 
-const tieneBeneficiario =
-    beneficiarios.some(
-        b => b.id_colaborador === c.id
-    );
+      // 2. TRAER TODAS LAS SEDES
+      const { data: sedes, error: errorSedes } = await supabase
+        .from("sedes")
+        .select("idsede, sede");
 
-if(tieneBeneficiario){
-    resumen[sede].registrados++;
-}
-
-    });
-
-    const resultado = Object.values(resumen)
-      .map(x => ({
-        ...x,
-        falta:
-          x.total - x.registrados,
-        avance:
-          Math.round(
-            (x.registrados * 100) /
-            x.total
-          )
-      }));
-
-    res.json({
-      ok: true,
-      data: resultado,
-      totalColaboradores: totalColaboradores
-    });
-
-});
+      if (errorSedes) {
+        console.error("ERROR SEDES:", errorSedes);
+        return res.status(500).json({
+          ok: false,
+          error: errorSedes.message
+        });
+      }
 
 
-// ===================================
-// 🗑️ ELIMINAR TODO
-// ===================================
-app.delete(
-"/admin/eliminar-todos",
-verificarToken,
-soloAdmin,
-async (req,res)=>{
+      // 3. TRAER BENEFICIARIOS
+      let beneficiarios = [];
+      desde = 0;
 
-  try{
+      while (true) {
 
-    await supabase
-      .from("beneficiarios")
-      .delete()
-      .neq("id", 0);
+        const { data, error } = await supabase
+          .from("beneficiarios")
+          .select("id_colaborador")
+          .range(desde, desde + limite - 1);
 
-    await supabase
-      .from("colaboradores")
-      .delete()
-      .neq("id", 0);
+        if (error) {
+          console.error("ERROR BENEFICIARIOS:", error);
+          return res.status(500).json({
+            ok: false,
+            error: error.message
+          });
+        }
 
-    res.json({
-      ok:true
-    });
+        beneficiarios.push(...data);
 
-  }catch(err){
+        if (data.length < limite) break;
 
-    console.error(err);
+        desde += limite;
+      }
 
-    res.status(500).json({
-      ok:false
-    });
+
+      // 4. CREAR MAPA DE SEDES
+      const mapaSedes = {};
+
+      sedes.forEach(s => {
+        mapaSedes[String(s.idsede).trim()] = s.sede;
+      });
+
+
+      // 5. IDs DE COLABORADORES REGISTRADOS
+      const registradosIds = new Set(
+        beneficiarios.map(b => b.id_colaborador)
+      );
+
+
+      // 6. CREAR RESUMEN
+      const resumen = {};
+
+      colaboradores.forEach(c => {
+
+        const codigoSede =
+          String(c.idsede || "").trim();
+
+        const nombreSede =
+          mapaSedes[codigoSede] || "SIN SEDE";
+
+        if (!resumen[nombreSede]) {
+
+          resumen[nombreSede] = {
+            sede: nombreSede,
+            total: 0,
+            registrados: 0
+          };
+
+        }
+
+        resumen[nombreSede].total++;
+
+        if (registradosIds.has(c.id)) {
+          resumen[nombreSede].registrados++;
+        }
+
+      });
+
+
+      // 7. CALCULAR RESULTADOS
+      const resultado = Object.values(resumen)
+        .map(x => ({
+
+          ...x,
+
+          falta:
+            x.total - x.registrados,
+
+          avance:
+            x.total > 0
+              ? Math.round(
+                  x.registrados * 100 / x.total
+                )
+              : 0
+
+        }))
+        .sort((a, b) =>
+          a.sede.localeCompare(b.sede)
+        );
+
+
+      console.log(
+        "TOTAL COLABORADORES:",
+        colaboradores.length
+      );
+
+      console.log(
+        "SEDES DASHBOARD:",
+        resultado
+      );
+
+
+      // 8. RESPUESTA
+      res.json({
+
+        ok: true,
+
+        data: resultado,
+
+        totalColaboradores:
+          colaboradores.length
+
+      });
+
+
+    } catch (error) {
+
+      console.error(
+        "ERROR DASHBOARD:",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        error: error.message
+      });
+
+    }
 
   }
-
-});
+);
 
 
 app.post("/admin/colaborador",verificarToken,soloAdmin,async (req,res)=>{
