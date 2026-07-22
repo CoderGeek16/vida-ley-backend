@@ -1650,7 +1650,7 @@ function confirmarPDF() {
   generarPDF();
 }
 
-// 🔥 ESTA FUNCIÓN ES CLAVE (TE FALTABA BIEN HECHA)
+
 async function generarPDF() {
   try {
 
@@ -1664,7 +1664,7 @@ async function generarPDF() {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "include", // 🔥 IMPORTANTE
+      credentials: "include", // 
       body: JSON.stringify({
       id_colaborador: colaboradorData.id,
       session_id: session_id

@@ -375,6 +375,12 @@ if(colaborador?.dni === data.dni){
   });
 }
 
+const nombreEmpresa =
+  col.idsede === "LP01" || col.idsede === "LP02"
+    ? "LOGISTICA PERUANA DEL ORIENTE S.A."
+    : "Trabajos Maritimos S.A.";
+
+
     const { data: beneficiarios } = await supabase
   .from("beneficiarios")
   .select(`
@@ -917,7 +923,7 @@ const textY = y + ((height - textHeight) / 2);
     y = drawFullRow(
       y,
       "Nombre y apellidos o razon social del empleador",
-      "Trabajos Maritimos S.A."
+      nombreEmpresa
     );
 
     y += 18;
